@@ -106,14 +106,16 @@ def create_train_data(train_dirs, dest_dir):
                     except InvalidDicomError:
                         print 'Invalid Dicom file {0}'.format(img)
                     img_pixel = np.array(img.pixel_array)
-                    if mask_path != None:
-                        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+                    has_ggo = False
+                    if mask_path != None: 
+                        mask = cv2.imread(mask_path,cv2.IMREAD_GRAYSCALE) 
                         mask = np.array([mask])
-                    else:
-                        mask = np.full((512, 512), 255, dtype=np.uint8)
+                        has_ggo = True
+                    else: 
+                        mask = np.full((512,512), 255, dtype = np.uint8)
                         mask = np.array([mask])
-                    counter += 1
-                    img_id = [p, counter]
+                    counter += 1 
+                    img_id = [p, counter, has_ggo]
                     imgs.append(img_pixel)
                     masks.append(mask)
                     imgs_id.append(img_id)
@@ -131,10 +133,10 @@ def create_train_data(train_dirs, dest_dir):
 
 
 def load_train_data(data_path):
-    imgs_train = np.load(data_path + 'train_imgs.npy')
-    imgs_mask_train = np.load(data_path + 'train_masks.npy')
-    imgs_train_id = np.load(data_path + 'train_index.npy')
-    return imgs_train, imgs_mask_train, imgs_train_id
+    train_imgs = np.load(data_path+'train_imgs.npy')
+    train_masks = np.load(data_path+'train_masks.npy')
+    train_index = np.load(data_path+'train_index.npy')
+    return train_imgs, train_masks, train_index
 
 
 def preprocessing_imgs(train_imgs, reduced_size=None):
@@ -234,10 +236,10 @@ def preprocessing_masks(train_masks, reduced_size=None):
 if __name__ == '__main__':
     #img_dict = get_img_mask_dict('../../../CA1', '../../../CA1_MASK')
 
-    train_imgs, train_masks, train_index = create_train_data(
-        ['../../../CA1'], '../../../')
-    # print train_imgs.shape, train_masks.shape
-    #train_imgs, train_masks, train_index = load_train_data("../../../")
+    train_imgs, train_masks, train_index = create_train_data(['../../../CA1'], '../../../')
+    print train_imgs.shape, train_masks.shape
+    train_imgs, train_masks, train_index = load_train_data("../../../")
+    print train_index[0:10,:]
     #train_imgs_p, m, st = preprocessing_imgs (train_imgs,reduced_size=(128,128))
     # print train_imgs_p.shape, m, st
     #train_masks_p = preprocessing_masks(train_masks,reduced_size=(128,128))
