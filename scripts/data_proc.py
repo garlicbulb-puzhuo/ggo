@@ -12,9 +12,12 @@ from scipy.ndimage.interpolation import map_coordinates
 from scipy.ndimage.filters import gaussian_filter
 import numpy.random as random
 import skimage.transform as tf
+import h5py
 
 
 logger = logging.getLogger()
+
+# match images and masks
 
 
 def get_img_mask_dict(img_dir, mask_dir):
@@ -82,17 +85,23 @@ def get_img_mask_dict(img_dir, mask_dir):
 
     return img_dict
 
-#train_dirs = ['../../../CA1','../../../CA2','../../../CA3']
+# read data from train_dirs, write to dest_dir in HDF5 binary
 
 
 def create_train_data(train_dirs, dest_dir):
-    imgs = []
-    masks = []
-    imgs_id = []
-    train_imgs_save_to = os.path.join(dest_dir, 'train_imgs.npy')
-    train_masks_save_to = os.path.join(dest_dir, 'train_masks.npy')
-    train_index_save_to = os.path.join(dest_dir, 'train_index.npy')
+    #    imgs = []
+    #    masks = []
+    #    imgs_id = []
+    #    train_imgs_save_to = os.path.join(dest_dir, 'train_imgs.npy')
+    #    train_masks_save_to = os.path.join(dest_dir, 'train_masks.npy')
+    #    train_index_save_to = os.path.join(dest_dir, 'train_index.npy')
+    f = h5py.File(os.path.join(dest_dir, "train_data.hdf5"), "w")
+#    f = h5py.File("train_data.hdf5", "w")
+
     for img_dir in train_dirs:
+        imgs = []
+        masks = []
+        indices = []
         mask_dir = img_dir + '_MASK'
         img_dict = get_img_mask_dict(img_dir, mask_dir)
         counter = 0
@@ -106,37 +115,122 @@ def create_train_data(train_dirs, dest_dir):
                     except InvalidDicomError:
                         print 'Invalid Dicom file {0}'.format(img)
                     img_pixel = np.array(img.pixel_array)
+                    if img_pixel.shape[0] != 512 or img_pixel.shape[1] != 512:
+                        img_pixel = cv2.resize(
+                            img_pixel, (512, 512), interpolation=cv2.INTER_CUBIC)
                     has_ggo = False
-                    if mask_path != None: 
-                        mask = cv2.imread(mask_path,cv2.IMREAD_GRAYSCALE) 
+                    if hasattr(img, 'BodyPartExamined'):
+                        body_part = img.BodyPartExamined
+                    else:
+                        body_part = None
+                    if mask_path != None:
+                        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
                         mask = np.array([mask])
                         has_ggo = True
-                    else: 
-                        mask = np.full((512,512), 255, dtype = np.uint8)
+                    else:
+                        mask = np.full((512, 512), 255, dtype=np.uint8)
                         mask = np.array([mask])
-                    counter += 1 
-                    img_id = [p, counter, has_ggo]
-                    imgs.append(img_pixel)
+                    counter += 1
+                    index = np.array(
+                        [p, str(counter), str(has_ggo), str(body_part)])
+                    imgs.append([img_pixel])
                     masks.append(mask)
-                    imgs_id.append(img_id)
+                    indices.append(index)
                     if counter % 100 == 0:
                         print 'Done: {0} images'.format(counter)
-    imgs = np.array(imgs)
-    masks = np.array(masks)
+        imgs = np.array(imgs)
+        np.reshape(imgs, (len(imgs), 1, 512, 512))
+        masks = np.array(masks)
+        indices = np.array(indices)
+        grp = f.create_group(img_dir)
+        dset = grp.create_dataset("imgs", data=imgs)
+        dset = grp.create_dataset("masks", data=masks)
+        dset = grp.create_dataset("indices", data=indices)
+    #imgs = np.array(imgs)
+    #masks = np.array(masks)
     print 'Loading done.'
 
-    np.save(train_imgs_save_to, imgs)
-    np.save(train_masks_save_to, masks)
-    np.save(train_index_save_to, imgs_id)
-    print 'Saving to .py files done'
-    return imgs, masks, imgs_id
+    #np.save(train_imgs_save_to, imgs)
+    #np.save(train_masks_save_to, masks)
+    #np.save(train_index_save_to, imgs_id)
+    # print 'Saving to .py files done'
+    print 'Saving to h5py files done'
+    return masks, masks, indices
 
 
-def load_train_data(data_path):
-    train_imgs = np.load(data_path+'train_imgs.npy')
-    train_masks = np.load(data_path+'train_masks.npy')
-    train_index = np.load(data_path+'train_index.npy')
+def load_train_data_from_npy(data_path):
+    train_imgs = np.load(data_path + 'train_imgs.npy')
+    train_masks = np.load(data_path + 'train_masks.npy')
+    train_index = np.load(data_path + 'train_index.npy')
     return train_imgs, train_masks, train_index
+
+patient_group_dict = {}
+
+
+def list_all_patients(name, obj):
+    if 'indices' in name:
+        p_set = set(obj[:, 0])
+        for p in p_set:
+            patient_group_dict[p] = name[:-7]
+
+
+def load_data_from_hdf5(file, patientID, patient_group_dict):
+    f = h5py.File(file, 'r')
+    group = patient_group_dict[patientID]
+    imgs = f.get(group).get('imgs')
+    masks = f.get(group).get('masks')
+    indices = f.get(group).get('indices')
+    ix = indices[:, 0] == patientID
+    return imgs[ix, :, :, :], masks[ix, :, :, :], indices[ix, :]
+
+
+def train_val_data_generator(file, train_batch_size=5, val_batch_size=2, normalization=True, reduced_size=None):
+    f = h5py.File(file, 'r')
+    f.visititems(list_all_patients)
+    p_list = patient_group_dict.keys()
+    remaining = len(p_list)
+    train_counter = 0
+    val_counter = train_counter + train_batch_size
+    if train_batch_size + val_batch_size > remaining:
+        print 'Not enough data!'
+    while train_batch_size + val_batch_size < remaining:
+        p_sublist = p_list[train_counter:(train_counter + train_batch_size)]
+        train_imgs = np.array([]).reshape((0, 1, 512, 512))
+        train_masks = np.array([]).reshape((0, 1, 512, 512))
+        train_index = np.array([]).reshape((0, 4))
+        for p in p_sublist:
+            imgs, masks, indices = load_data_from_hdf5(
+                file, p, patient_group_dict)
+            train_imgs = np.vstack((train_imgs, imgs))
+            train_masks = np.vstack((train_masks, masks))
+            train_index = np.vstack((train_index, indices))
+        p_sublist = p_list[val_counter:(val_counter + val_batch_size)]
+        val_imgs = np.array([]).reshape((0, 1, 512, 512))
+        val_masks = np.array([]).reshape((0, 1, 512, 512))
+        val_index = np.array([]).reshape((0, 4))
+        imgs_len = 0
+        for p in p_sublist:
+            imgs, masks, indices = load_data_from_hdf5(
+                file, p, patient_group_dict)
+            imgs_len += imgs.shape[0]
+            val_imgs = np.vstack((val_imgs, imgs))
+            val_masks = np.vstack((val_masks, masks))
+            val_index = np.vstack((val_index, indices))
+        val_imgs = np.array(val_imgs)
+        train_counter = train_counter + train_batch_size + val_batch_size
+        val_counter = train_counter + train_batch_size
+        remaining -= train_batch_size + val_batch_size
+        if normalization:
+            print train_imgs.shape
+            print train_counter
+            train_imgs_p, m, st = preprocessing_imgs(train_imgs, reduced_size)
+            train_masks_p = preprocessing_masks(train_masks, reduced_size)
+            val_imgs_p, m_val, st_val = preprocessing_imgs(
+                val_imgs, reduced_size)
+            val_masks_p = preprocessing_masks(val_masks, reduced_size)
+            yield train_imgs_p, train_masks_p, train_index, val_imgs_p, val_masks_p, val_index, m, st
+        else:
+            yield train_imgs, train_masks, train_index, val_imgs, val_masks, val_index
 
 
 def preprocessing_imgs(train_imgs, reduced_size=None):
@@ -145,7 +239,7 @@ def preprocessing_imgs(train_imgs, reduced_size=None):
         train_imgs_p = np.ndarray(
             (train_imgs.shape[0], 1) + reduced_size, dtype=np.float32)
         for i in range(train_imgs.shape[0]):
-            train_imgs_p[i, 0] = cv2.resize(train_imgs[i], (reduced_size[1], reduced_size[
+            train_imgs_p[i, 0] = cv2.resize(train_imgs[i][0], (reduced_size[1], reduced_size[
                                             0]), interpolation=cv2.INTER_CUBIC)  # INVERSE ORDER! cols,rows
     else:
         train_imgs_p = train_imgs.astype(np.float32)
@@ -236,10 +330,11 @@ def preprocessing_masks(train_masks, reduced_size=None):
 if __name__ == '__main__':
     #img_dict = get_img_mask_dict('../../../CA1', '../../../CA1_MASK')
 
-    train_imgs, train_masks, train_index = create_train_data(['../../../CA1'], '../../../')
-    print train_imgs.shape, train_masks.shape
-    train_imgs, train_masks, train_index = load_train_data("../../../")
-    print train_index[0:10,:]
+    train_imgs, train_masks, train_index = create_train_data(
+        ['../../../CA1', '../../../CA2', '../../../CA3'], '../../../')
+    # print train_imgs.shape, train_masks.shape
+    # train_val_data_generator('../../../train_data.hdf5')
+    #train_imgs, train_masks, train_index = load_train_data("../../../")
     #train_imgs_p, m, st = preprocessing_imgs (train_imgs,reduced_size=(128,128))
     # print train_imgs_p.shape, m, st
     #train_masks_p = preprocessing_masks(train_masks,reduced_size=(128,128))
