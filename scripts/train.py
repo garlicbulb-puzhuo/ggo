@@ -1,8 +1,5 @@
 from __future__ import print_function
 
-import cv2
-import numpy as np
-import random
 from keras.models import Model
 from keras.layers import Input, merge, Convolution2D, MaxPooling2D, UpSampling2D
 from keras.optimizers import Adam
@@ -10,10 +7,6 @@ from keras.callbacks import ModelCheckpoint, LearningRateScheduler
 from keras import backend as K
 
 from data_proc import train_val_data_generator
-
-#import theano
-#theano.config.device = 'gpu'
-#theano.config.floatX = 'float32'
 
 
 img_rows = 64
