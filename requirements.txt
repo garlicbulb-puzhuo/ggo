@@ -4,6 +4,7 @@ dask==0.11.1
 decorator==4.0.10
 Flask==0.11.1
 funcsigs==1.0.2
+h5py==2.6.0
 hyperas==0.2
 hyperopt==0.0.2
 itsdangerous==0.24
@@ -32,4 +33,3 @@ six==1.10.0
 Theano==0.8.2
 toolz==0.8.0
 Werkzeug==0.11.11
-
