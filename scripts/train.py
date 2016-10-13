@@ -1,3 +1,5 @@
+#!/usr/bin/env python2.7
+
 from __future__ import print_function
 
 from keras.models import Model
