@@ -17,8 +17,7 @@ import h5py
 
 logger = logging.getLogger()
 
-# match images and masks
-
+# match images with masks
 
 def get_img_mask_dict(img_dir, mask_dir):
     logger.info("processing {0}".format(img_dir))
@@ -58,7 +57,6 @@ def get_img_mask_dict(img_dir, mask_dir):
         mask_name = re.search(
             r'(.*SRS\d{1,}/)(IMG\d{1,})', img).group(2) + '-mask.tif'
         mask_path = os.path.join(path, mask_name)
-        # print mask_path
         if os.path.isfile(mask_path):
             img_dict[patientID]['img_series'][
                 seriesNumber]['masks'].append(mask_path)
@@ -85,7 +83,7 @@ def get_img_mask_dict(img_dir, mask_dir):
 
     return img_dict
 
-# read data from train_dirs, write to dest_dir in HDF5 binary
+# read data from train_dirs, write to dest_dir in HDF5 binary. 
 
 
 def create_train_data(train_dirs, dest_dir):
@@ -96,7 +94,6 @@ def create_train_data(train_dirs, dest_dir):
     #    train_masks_save_to = os.path.join(dest_dir, 'train_masks.npy')
     #    train_index_save_to = os.path.join(dest_dir, 'train_index.npy')
     f = h5py.File(os.path.join(dest_dir, "train_data.hdf5"), "w")
-#    f = h5py.File("train_data.hdf5", "w")
 
     for img_dir in train_dirs:
         imgs = []
@@ -221,8 +218,6 @@ def train_val_data_generator(file, train_batch_size=5, val_batch_size=2, normali
         val_counter = train_counter + train_batch_size
         remaining -= train_batch_size + val_batch_size
         if normalization:
-            print train_imgs.shape
-            print train_counter
             train_imgs_p, m, st = preprocessing_imgs(train_imgs, reduced_size)
             train_masks_p = preprocessing_masks(train_masks, reduced_size)
             val_imgs_p, m_val, st_val = preprocessing_imgs(
@@ -232,6 +227,42 @@ def train_val_data_generator(file, train_batch_size=5, val_batch_size=2, normali
         else:
             yield train_imgs, train_masks, train_index, val_imgs, val_masks, val_index
 
+def transform_train_data_generator(file, train_batch_size = 5, normalization = True, reduced_size=None, augmentationfactor = 1): 
+    f = h5py.File(file, 'r')
+    f.visititems(list_all_patients)
+    p_list = patient_group_dict.keys()
+    remaining = len(p_list)
+    counter = 0
+    if train_batch_size > remaining:
+        print 'Not enough data!'
+    while train_batch_size < remaining:
+        p_sublist = p_list[counter:(counter + train_batch_size)]
+        train_imgs = np.array([]).reshape((0, 1, 512, 512))
+        train_masks = np.array([]).reshape((0, 1, 512, 512))
+        train_index = np.array([]).reshape((0, 4))
+        for p in p_sublist:
+            imgs, masks, indices = load_data_from_hdf5(
+                file, p, patient_group_dict)
+            train_imgs = np.vstack((train_imgs, imgs))
+            print train_imgs.shape
+            train_masks = np.vstack((train_masks, masks))
+            train_index = np.vstack((train_index, indices))
+        counter = counter + train_batch_size
+        remaining -= train_batch_size 
+
+        data_shape = train_imgs.shape
+        train_imgs_tf = np.ndarray((data_shape[0]*augmentationfactor, data_shape[1], data_shape[2], data_shape[3]))
+        train_masks_tf = np.ndarray((data_shape[0]*augmentationfactor, data_shape[1], data_shape[2], data_shape[3]))
+        count = 0
+        for i in range(data_shape[0]): 
+            for j in range(augmentationfactor): 
+                train_imgs_tf[count][0], train_masks_tf[count][0] = transform(train_imgs[count][0],train_masks[count][0])
+#                plt.imshow(train_imgs[count][0]-train_imgs[count][0])
+#                plt.show()
+                count += 1
+        train_imgs_p, m, st = preprocessing_imgs(train_imgs_tf, reduced_size)
+        train_masks_p = preprocessing_masks(train_masks_tf, reduced_size)
+        yield train_imgs_p, train_imgs_p
 
 def preprocessing_imgs(train_imgs, reduced_size=None):
     # resizing
@@ -253,7 +284,7 @@ def preprocessing_imgs(train_imgs, reduced_size=None):
     return train_imgs_p, m, st
 
 
-def transform(image):  # translate, shear, stretch, flips?
+def transform(image, mask):  # translate, shear, stretch, flips?
     rows, cols = image.shape
 
     angle = random.uniform(-1.5, 1.5)
@@ -261,20 +292,26 @@ def transform(image):  # translate, shear, stretch, flips?
               cols / 2 - 0.5 + random.uniform(-50, 50))
     def_image = tf.rotate(image, angle=angle, center=center,
                           clip=True, preserve_range=True, order=5)
+    if (mask - mask[0][0] == 0).all():
+        def_mask = mask
+    else: 
+        def_mask = tf.rotate(mask, angle=angle, center=center,
+                          clip=True, preserve_range=True, order=5)
+        print "yes"
 
     alpha = random.uniform(0, 5)
     sigma = random.exponential(scale=5) + 2 + alpha**2
-    def_image = elastic_transform(def_image, alpha, sigma)
+    def_image, def_mask = elastic_transform(def_image, def_mask, alpha, sigma)
 
-    def_image = def_image[10:-10, 10:-10]
-
-    return def_image
+    #def_image = def_image[10:-10, 10:-10]
+    #def_mask = def_mask[10:-10, 10:-10]
+    return def_image, def_mask
 
 # sigma: variance of filter, fixes homogeneity of transformation
 #    (close to zero : random, big: translation)
 
 
-def elastic_transform(image, alpha, sigma, random_state=None):
+def elastic_transform(image, mask, alpha, sigma, random_state=None):
     """Elastic deformation of images as described in [Simard2003]_.
     .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
        Convolutional Neural Networks applied to Visual Document Analysis", in
@@ -305,7 +342,13 @@ def elastic_transform(image, alpha, sigma, random_state=None):
     image_tfd[image_tfd > max_im] = max_im
     image_tfd[image_tfd < min_im] = min_im
 
-    return image_tfd
+    min_im = np.min(mask)
+    max_im = np.max(mask)
+    mask_tfd = map_coordinates(mask, indices, order=3).reshape(shape)
+    mask_tfd[mask_tfd > max_im] = max_im
+    mask_tfd[mask_tfd < min_im] = min_im
+    
+    return image_tfd, mask_tfd
 
 
 def preprocessing_masks(train_masks, reduced_size=None):
@@ -330,10 +373,12 @@ def preprocessing_masks(train_masks, reduced_size=None):
 if __name__ == '__main__':
     #img_dict = get_img_mask_dict('../../../CA1', '../../../CA1_MASK')
 
-    train_imgs, train_masks, train_index = create_train_data(
-        ['../../../CA1', '../../../CA2', '../../../CA3'], '../../../')
-    # print train_imgs.shape, train_masks.shape
+    #train_imgs, train_masks, train_index = create_train_data(
+    #    ['../../../CA1', '../../../CA2', '../../../CA3'], '../../../')
+    
     # train_val_data_generator('../../../train_data.hdf5')
+    for i, j in transform_train_data_generator('../../../train_data.hdf5',augmentationfactor=1): 
+        print "*"*40
     #train_imgs, train_masks, train_index = load_train_data("../../../")
     #train_imgs_p, m, st = preprocessing_imgs (train_imgs,reduced_size=(128,128))
     # print train_imgs_p.shape, m, st
