@@ -83,19 +83,19 @@ def get_img_mask_dict(img_dir, mask_dir):
 
     return img_dict
 
-# read data from train_dirs, write to dest_dir in HDF5 binary. 
+# read data from src_dirs, write to des_file in HDF5 binary; Scale image & mask to reduced_size; if augmentation > 1, generate # of 'augmentation' images for each ggo image. 
 
 
-def create_train_data(train_dirs, dest_dir):
-    #    imgs = []
-    #    masks = []
-    #    imgs_id = []
-    #    train_imgs_save_to = os.path.join(dest_dir, 'train_imgs.npy')
-    #    train_masks_save_to = os.path.join(dest_dir, 'train_masks.npy')
-    #    train_index_save_to = os.path.join(dest_dir, 'train_index.npy')
-    f = h5py.File(os.path.join(dest_dir, "train_data.hdf5"), "w")
-
-    for img_dir in train_dirs:
+def create_data(src_dirs, des_file, normalization = True, reduced_size = None, augmentation = 1):
+    if normalization and reduced_size != None: 
+        img_rows = reduced_size[0]
+        img_cols = reduced_size[1]
+    else: 
+        img_rows = 512
+        img_cols = 512
+    #f = h5py.File(os.path.join(des_dir, "train_data.hdf5"), "w")
+    f = h5py.File(des_file, "w")
+    for img_dir in src_dirs:
         imgs = []
         masks = []
         indices = []
@@ -112,9 +112,7 @@ def create_train_data(train_dirs, dest_dir):
                     except InvalidDicomError:
                         print 'Invalid Dicom file {0}'.format(img)
                     img_pixel = np.array(img.pixel_array)
-                    if img_pixel.shape[0] != 512 or img_pixel.shape[1] != 512:
-                        img_pixel = cv2.resize(
-                            img_pixel, (512, 512), interpolation=cv2.INTER_CUBIC)
+                    img_pixel = cv2.resize(img_pixel, (img_cols, img_rows), interpolation=cv2.INTER_CUBIC)
                     has_ggo = False
                     if hasattr(img, 'BodyPartExamined'):
                         body_part = img.BodyPartExamined
@@ -122,37 +120,51 @@ def create_train_data(train_dirs, dest_dir):
                         body_part = None
                     if mask_path != None:
                         mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-                        mask = np.array([mask])
+                        mask = cv2.resize(mask, (img_cols, img_rows), interpolation=cv2.INTER_CUBIC)
+#                        mask = np.array([mask])
                         has_ggo = True
                     else:
-                        mask = np.full((512, 512), 255, dtype=np.uint8)
-                        mask = np.array([mask])
+                        mask = np.full((img_rows, img_cols), 255, dtype=np.uint8)
+ #                       mask = np.array([mask])
                     counter += 1
                     index = np.array(
                         [p, str(counter), str(has_ggo), str(body_part)])
                     imgs.append([img_pixel])
-                    masks.append(mask)
+                    masks.append([mask])
                     indices.append(index)
+                    if augmentation > 1 and has_ggo:
+                        for i in range(augmentation):
+                            img_tf, mask_tf = transform(img_pixel,mask)
+                            counter += 1
+                            index = np.array([p, str(counter), str(has_ggo), str(body_part)])
+                            imgs.append([img_tf])
+                            masks.append([mask_tf])
+                            indices.append(index)
                     if counter % 100 == 0:
                         print 'Done: {0} images'.format(counter)
+ 
+        if normalization: 
+            m = np.mean(imgs).astype(np.float32)
+            imgs -= m
+            st = np.std(imgs).astype(np.float32)
+            imgs /= st
+            m = np.mean(masks).astype(np.float32)
+            masks -= m
+            st = np.std(masks).astype(np.float32)
+            masks /= (st+1e-6)
+            print 'std --- '+str(st)
         imgs = np.array(imgs)
-        np.reshape(imgs, (len(imgs), 1, 512, 512))
+        np.reshape(imgs, (len(imgs), 1, img_rows, img_cols))
         masks = np.array(masks)
+        np.reshape(masks, (len(masks), 1, img_rows, img_cols))
         indices = np.array(indices)
         grp = f.create_group(img_dir)
         dset = grp.create_dataset("imgs", data=imgs)
         dset = grp.create_dataset("masks", data=masks)
         dset = grp.create_dataset("indices", data=indices)
-    #imgs = np.array(imgs)
-    #masks = np.array(masks)
     print 'Loading done.'
-
-    #np.save(train_imgs_save_to, imgs)
-    #np.save(train_masks_save_to, masks)
-    #np.save(train_index_save_to, imgs_id)
-    # print 'Saving to .py files done'
     print 'Saving to h5py files done'
-    return masks, masks, indices
+    return imgs, masks, indices
 
 
 def load_train_data_from_npy(data_path):
@@ -181,7 +193,7 @@ def load_data_from_hdf5(file, patientID, patient_group_dict):
     return imgs[ix, :, :, :], masks[ix, :, :, :], indices[ix, :]
 
 
-def train_val_data_generator(file, train_batch_size=5, val_batch_size=2, normalization=True, reduced_size=None):
+def train_val_data_generator(file, img_rows, img_cols, train_batch_size=5, val_batch_size=2):
     f = h5py.File(file, 'r')
     f.visititems(list_all_patients)
     p_list = patient_group_dict.keys()
@@ -192,8 +204,8 @@ def train_val_data_generator(file, train_batch_size=5, val_batch_size=2, normali
         print 'Not enough data!'
     while train_batch_size + val_batch_size < remaining:
         p_sublist = p_list[train_counter:(train_counter + train_batch_size)]
-        train_imgs = np.array([]).reshape((0, 1, 512, 512))
-        train_masks = np.array([]).reshape((0, 1, 512, 512))
+        train_imgs = np.array([]).reshape((0, 1, img_rows, img_cols))
+        train_masks = np.array([]).reshape((0, 1, img_rows, img_cols))
         train_index = np.array([]).reshape((0, 4))
         for p in p_sublist:
             imgs, masks, indices = load_data_from_hdf5(
@@ -202,8 +214,8 @@ def train_val_data_generator(file, train_batch_size=5, val_batch_size=2, normali
             train_masks = np.vstack((train_masks, masks))
             train_index = np.vstack((train_index, indices))
         p_sublist = p_list[val_counter:(val_counter + val_batch_size)]
-        val_imgs = np.array([]).reshape((0, 1, 512, 512))
-        val_masks = np.array([]).reshape((0, 1, 512, 512))
+        val_imgs = np.array([]).reshape((0, 1, img_rows, img_cols))
+        val_masks = np.array([]).reshape((0, 1, img_rows, img_cols))
         val_index = np.array([]).reshape((0, 4))
         imgs_len = 0
         for p in p_sublist:
@@ -217,15 +229,7 @@ def train_val_data_generator(file, train_batch_size=5, val_batch_size=2, normali
         train_counter = train_counter + train_batch_size + val_batch_size
         val_counter = train_counter + train_batch_size
         remaining -= train_batch_size + val_batch_size
-        if normalization:
-            train_imgs_p, m, st = preprocessing_imgs(train_imgs, reduced_size)
-            train_masks_p = preprocessing_masks(train_masks, reduced_size)
-            val_imgs_p, m_val, st_val = preprocessing_imgs(
-                val_imgs, reduced_size)
-            val_masks_p = preprocessing_masks(val_masks, reduced_size)
-            yield train_imgs_p, train_masks_p, train_index, val_imgs_p, val_masks_p, val_index, m, st
-        else:
-            yield train_imgs, train_masks, train_index, val_imgs, val_masks, val_index
+        yield train_imgs, train_masks, train_index, val_imgs, val_masks, val_index
 
 def transform_train_data_generator(file, train_batch_size = 5, normalization = True, reduced_size=None, augmentationfactor = 1): 
     f = h5py.File(file, 'r')
@@ -244,7 +248,6 @@ def transform_train_data_generator(file, train_batch_size = 5, normalization = T
             imgs, masks, indices = load_data_from_hdf5(
                 file, p, patient_group_dict)
             train_imgs = np.vstack((train_imgs, imgs))
-            print train_imgs.shape
             train_masks = np.vstack((train_masks, masks))
             train_index = np.vstack((train_index, indices))
         counter = counter + train_batch_size
@@ -297,8 +300,6 @@ def transform(image, mask):  # translate, shear, stretch, flips?
     else: 
         def_mask = tf.rotate(mask, angle=angle, center=center,
                           clip=True, preserve_range=True, order=5)
-        print "yes"
-
     alpha = random.uniform(0, 5)
     sigma = random.exponential(scale=5) + 2 + alpha**2
     def_image, def_mask = elastic_transform(def_image, def_mask, alpha, sigma)
@@ -372,13 +373,15 @@ def preprocessing_masks(train_masks, reduced_size=None):
 
 if __name__ == '__main__':
     #img_dict = get_img_mask_dict('../../../CA1', '../../../CA1_MASK')
-
-    #train_imgs, train_masks, train_index = create_train_data(
-    #    ['../../../CA1', '../../../CA2', '../../../CA3'], '../../../')
+    train_dirs = ['../../../CA1', '../../../CA2', '../../../CA3']
+    des_file = '../../../train_data.hdf5'
+    img_rows = 64
+    img_cols = 64
+    train_imgs, train_masks, train_index = create_data(train_dirs, des_file, normaliztion = True, reduced_size = [img_rows, img_cols], augmentation = 20)
     
     # train_val_data_generator('../../../train_data.hdf5')
-    for i, j in transform_train_data_generator('../../../train_data.hdf5',augmentationfactor=1): 
-        print "*"*40
+    #for i, j in transform_train_data_generator('../../../train_data.hdf5',augmentationfactor=1): 
+    #    print "*"*40
     #train_imgs, train_masks, train_index = load_train_data("../../../")
     #train_imgs_p, m, st = preprocessing_imgs (train_imgs,reduced_size=(128,128))
     # print train_imgs_p.shape, m, st
@@ -386,9 +389,4 @@ if __name__ == '__main__':
     # plt.imshow(train_imgs[0])
     # plt.imshow(train_masks[0,0])
     # plt.show()
-    # plt.imshow(train_imgs_p[0,0])
-    # plt.imshow(train_masks_p[0,0])
-    # plt.show()
-    #ts = transform(train_masks_p[0,0])
-    # plt.imshow(ts)
-    # plt.show()
+
