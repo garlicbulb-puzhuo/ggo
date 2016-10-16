@@ -106,7 +106,7 @@ def get_unet():
 
 
 def get_spark_model(model):
-    spark_model = SparkModel(sc, model, optimizer=adagrad, frequency='epoch', mode='asynchronous', num_workers=2)
+    spark_model = SparkModel(sc, model, optimizer=adagrad, frequency='epoch', mode='asynchronous', num_workers=4, master_loss=dice_coef_loss)
 
     return spark_model
 
@@ -162,7 +162,7 @@ def train_and_predict(train_imgs_path):
         for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index, m, st in \
                 train_val_data_generator(train_imgs_path, train_batch_size=3, val_batch_size=1, normalization=True, reduced_size=(img_rows, img_cols)):
             rdd = to_simple_rdd(sc, train_imgs, train_masks)
-            spark_model.train(rdd, batch_size=32, nb_epoch=nb_epoch, verbose=verbose, validation_split=0.1, num_workers=8)
+            spark_model.train(rdd, batch_size=32, nb_epoch=nb_epoch, verbose=verbose, validation_split=0.1)
 
             # model.fit(train_imgs, train_masks, batch_size=32, nb_epoch=nb_epoch, validation_data=(
             #     val_imgs, val_masks), verbose=verbose, shuffle=True, callbacks=[model_checkpoint])
@@ -196,6 +196,6 @@ def train_and_predict(train_imgs_path):
 
 
 if __name__ == '__main__':
-    train_and_predict()
-    train_imgs_path = str(sys.argv[0])
+    train_imgs_path = str(sys.argv[1])
+    print("train images path %s" % train_imgs_path)
     train_and_predict(train_imgs_path)
