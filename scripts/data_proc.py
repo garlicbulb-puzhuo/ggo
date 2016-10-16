@@ -494,11 +494,6 @@ if __name__ == '__main__':
     args = parse_options()
     # train_imgs, train_masks, train_index = create_train_data(args.img_dir, args.mask_dir, args.output_dir)
     # print train_imgs.shape, train_masks.shape
-    train_imgs, train_masks, train_index = load_train_data(args.output_dir)
-    print train_imgs.shape
-    for patient_imgs in train_imgs:
-        for img in patient_imgs[1:10]:
-            print img.shape
 
     train_imgs, train_masks, train_index = create_data(args.input_dirs, args.output_dir, normaliztion = True, reduced_size = [img_rows, img_cols], augmentation = 20)
 

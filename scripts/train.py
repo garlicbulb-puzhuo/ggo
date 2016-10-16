@@ -14,17 +14,24 @@ from elephas.utils.rdd_utils import to_simple_rdd
 
 from pyspark import SparkContext, SparkConf
 
-from data_proc import train_val_data_generator, test_data_generator
+import argparse
 import sys
+import logging
+
+from data_proc import train_val_data_generator, test_data_generator
+
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+# match images and masks
+logging_handler_out = logging.StreamHandler(sys.stdout)
+logger.addHandler(logging_handler_out)
 
 img_rows = 128
 img_cols = 128
 
 smooth = 100
-
-conf = SparkConf().setAppName('Spark_Backend')
-sc = SparkContext(conf=conf)
-adagrad = elephas_optimizers.Adagrad()
 
 
 def dice_coef(y_true, y_pred):
@@ -106,9 +113,12 @@ def get_unet():
 
 
 def get_spark_model(model):
+    conf = SparkConf().setAppName('Spark_Backend')
+    sc = SparkContext(conf=conf)
+    adagrad = elephas_optimizers.Adagrad()
     spark_model = SparkModel(sc, model, optimizer=adagrad, frequency='epoch', mode='asynchronous', num_workers=4, master_loss=dice_coef_loss)
 
-    return spark_model
+    return sc, spark_model
 
 '''
 def train_val_split(imgs, masks, index, split_ratio = 0.1): 
@@ -133,7 +143,7 @@ def train_val_split(imgs, masks, index, split_ratio = 0.1):
 '''
 
 
-def train_and_predict(train_imgs_path):
+def train_and_predict(train_imgs_path, mode):
     print('-' * 30)
     print('Loading and preprocessing train data...')
     print('-' * 30)
@@ -146,7 +156,10 @@ def train_and_predict(train_imgs_path):
     print('Creating and compiling model...')
     print('-' * 30)
     model = get_unet()
-    spark_model = get_spark_model(model)
+
+    if mode == 'spark':
+        sc, spark_model = get_spark_model(model)
+
     model_checkpoint = ModelCheckpoint(
         'unet.hdf5', monitor='loss', save_best_only=True)
 
@@ -161,11 +174,13 @@ def train_and_predict(train_imgs_path):
         print("epoch %d" % e)
         for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index, m, st in \
                 train_val_data_generator(train_imgs_path, train_batch_size=3, val_batch_size=1, normalization=True, reduced_size=(img_rows, img_cols)):
-            rdd = to_simple_rdd(sc, train_imgs, train_masks)
-            spark_model.train(rdd, batch_size=32, nb_epoch=nb_epoch, verbose=verbose, validation_split=0.1)
 
-            # model.fit(train_imgs, train_masks, batch_size=32, nb_epoch=nb_epoch, validation_data=(
-            #     val_imgs, val_masks), verbose=verbose, shuffle=True, callbacks=[model_checkpoint])
+            if mode == 'spark':
+                rdd = to_simple_rdd(sc, train_imgs, train_masks)
+                spark_model.train(rdd, batch_size=32, nb_epoch=nb_epoch, verbose=verbose, validation_split=0.1)
+            else:
+                model.fit(train_imgs, train_masks, batch_size=32, nb_epoch=nb_epoch, validation_data=(val_imgs, val_masks), verbose=verbose, shuffle=True,
+                          callbacks=[model_checkpoint])
 
     '''
     print('-'*30)
@@ -195,7 +210,17 @@ def train_and_predict(train_imgs_path):
         print(mask_test)
 
 
+
+def parse_options():
+    parser = argparse.ArgumentParser(description='Train model.')
+    parser.add_argument('--train_imgs_path', metavar='train_imgs_path', nargs='?',
+                        help='input directory for images and masks in the training set', required=True)
+    parser.add_argument('--mode', metavar='mode', nargs='?',
+                        help='mode to train your model, can be either spark or standalone', required=True)
+
+    return parser.parse_args()
+
 if __name__ == '__main__':
-    train_imgs_path = str(sys.argv[1])
-    print("train images path %s" % train_imgs_path)
-    train_and_predict(train_imgs_path)
+    args = parse_options()
+    print("train images path %s" % args.train_imgs_path)
+    train_and_predict(train_imgs_path=args.train_imgs_path, mode=args.mode)
