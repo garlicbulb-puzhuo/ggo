@@ -3,6 +3,10 @@
 ```
 $ git branch -av
 ```
+- To pull updates from github
+```
+$ git pull --rebase
+```
 - To commit code and create a pull request, run
 ```
 $ git checkout -b <feature_branch> 
