@@ -15,7 +15,7 @@ from elephas.utils.rdd_utils import to_simple_rdd
 from pyspark import SparkContext, SparkConf
 
 from data_proc import train_val_data_generator, test_data_generator
-
+import sys
 
 img_rows = 128
 img_cols = 128
@@ -133,13 +133,10 @@ def train_val_split(imgs, masks, index, split_ratio = 0.1):
 '''
 
 
-def train_and_predict():
+def train_and_predict(train_imgs_path):
     print('-' * 30)
     print('Loading and preprocessing train data...')
     print('-' * 30)
-    #train_imgs, train_masks, train_index = load_train_data("../../../")
-
-    train_imgs_path = "/Users/csong/Developer/workspace/ggo-data/test/train_data.hdf5"
 
     #train_imgs_p, m, st = preprocessing_imgs (train_imgs,reduced_size=(img_rows, img_cols))
     #train_masks_p = preprocessing_masks(train_masks,reduced_size=(img_rows, img_cols))
@@ -196,7 +193,9 @@ def train_and_predict():
         print('-' * 30)
         mask_test = model.predict(imgs, verbose=1)
         print(mask_test)
-'''
+
+
 if __name__ == '__main__':
     train_and_predict()
-'''
+    train_imgs_path = str(sys.argv[0])
+    train_and_predict(train_imgs_path)
