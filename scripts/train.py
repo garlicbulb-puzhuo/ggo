@@ -12,7 +12,7 @@ from data_proc import train_val_data_generator
 img_rows = 64
 img_cols = 64
 
-smooth = 0.1
+smooth = 100
 
 
 def dice_coef(y_true, y_pred):
@@ -135,11 +135,11 @@ def train_and_predict():
     print('-' * 30)
     print('Fitting model...')
     print('-' * 30)
-    nb_epoch = 10
+    nb_epoch = 5
     for e in range(nb_epoch):
         print("epoch %d" % e)
-        for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index, m, st in \
-                train_val_data_generator('../../../train_data.hdf5', train_batch_size=2, val_batch_size=1, normalization=True, reduced_size=(img_rows, img_cols)):
+        for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index in \
+                train_val_data_generator('../../../train_data.hdf5', train_batch_size=3, val_batch_size=1, img_rows =64, img_cols = 64):
             model.fit(train_imgs, train_masks, batch_size=32, nb_epoch=nb_epoch, validation_data=(
                 val_imgs, val_masks), verbose=1, shuffle=True, callbacks=[model_checkpoint])
 
