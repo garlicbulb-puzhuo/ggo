@@ -19,6 +19,7 @@ import sys
 import logging
 
 from data_proc import train_val_data_generator, test_data_generator
+from data_utils import train_val_data_generator
 
 
 logger = logging.getLogger()
