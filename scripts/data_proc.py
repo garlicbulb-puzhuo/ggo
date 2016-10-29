@@ -93,14 +93,14 @@ def get_img_mask_dict(img_dir, mask_dir):
 # read data from src_dirs, write to des_file in HDF5 binary; Scale image & mask to reduced_size; if augmentation > 1, generate # of 'augmentation' images for each ggo image. 
 
 
-def create_data(src_dirs, des_file, normalization = True, reduced_size = None, augmentation = 1):
+def create_data(src_dirs, des_dir, normalization = True, reduced_size = None, augmentation = 1):
     if normalization and reduced_size != None: 
         img_rows = reduced_size[0]
         img_cols = reduced_size[1]
     else: 
         img_rows = 512
         img_cols = 512
-    #f = h5py.File(os.path.join(des_dir, "train_data.hdf5"), "w")
+    des_file = os.path.join(des_dir, "train_data.hdf5")
     f = h5py.File(des_file, "w")
     for img_dir in src_dirs:
         imgs = []
@@ -128,11 +128,11 @@ def create_data(src_dirs, des_file, normalization = True, reduced_size = None, a
                     if mask_path != None:
                         mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
                         mask = cv2.resize(mask, (img_cols, img_rows), interpolation=cv2.INTER_CUBIC)
-#                        mask = np.array([mask])
+                        # mask = np.array([mask])
                         has_ggo = True
                     else:
                         mask = np.full((img_rows, img_cols), 255, dtype=np.uint8)
- #                       mask = np.array([mask])
+                        # mask = np.array([mask])
                     counter += 1
                     index = np.array(
                         [p, str(counter), str(has_ggo), str(body_part)])
@@ -171,6 +171,7 @@ def create_data(src_dirs, des_file, normalization = True, reduced_size = None, a
         dset = grp.create_dataset("indices", data=indices)
     print 'Loading done.'
     print 'Saving to h5py files done'
+    return imgs, masks, indices
 
 
 # read data from train_dirs, write to dest_dir in HDF5 binary
@@ -495,7 +496,7 @@ if __name__ == '__main__':
     # train_imgs, train_masks, train_index = create_train_data(args.img_dir, args.mask_dir, args.output_dir)
     # print train_imgs.shape, train_masks.shape
 
-    train_imgs, train_masks, train_index = create_data(args.input_dirs, args.output_dir, normaliztion = True, reduced_size = [img_rows, img_cols], augmentation = 20)
+    train_imgs, train_masks, train_index = create_data(args.input_dirs, args.output_dir, normalization=True, reduced_size=[img_rows, img_cols], augmentation=20)
 
     # print train_imgs.shape, train_masks.shape
     # train_val_data_generator('../../../train_data.hdf5')
