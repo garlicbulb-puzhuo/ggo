@@ -173,8 +173,8 @@ def train_and_predict(train_imgs_path, mode):
 
     for e in range(nb_epoch):
         print("epoch %d" % e)
-        for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index, m, st in \
-                train_val_data_generator(train_imgs_path, train_batch_size=3, val_batch_size=1, img_rows =64, img_cols = 64):
+        for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index in \
+                train_val_data_generator(train_imgs_path, train_batch_size=3, val_batch_size=1, img_rows=64, img_cols=64):
 
             if mode == 'spark':
                 rdd = to_simple_rdd(sc, train_imgs, train_masks)
