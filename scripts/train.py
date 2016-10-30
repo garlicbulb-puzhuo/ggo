@@ -168,11 +168,12 @@ def train_and_predict(train_imgs_path, mode):
     print('Fitting model...')
     print('-' * 30)
 
-    nb_epoch = 2
+    nb_epoch = 1
     verbose = 1
 
     for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index in \
             train_val_data_generator(train_imgs_path, train_batch_size=2, val_batch_size=1, img_rows=64, img_cols=64):
+        print(train_imgs.shape)
 
         if mode == 'spark':
             rdd = to_simple_rdd(sc, train_imgs, train_masks)
@@ -180,6 +181,8 @@ def train_and_predict(train_imgs_path, mode):
         else:
             model.fit(train_imgs, train_masks, batch_size=32, nb_epoch=nb_epoch, validation_data=(val_imgs, val_masks), verbose=verbose, shuffle=True,
                       callbacks=[model_checkpoint])
+
+        break
 
     '''
     print('-'*30)
