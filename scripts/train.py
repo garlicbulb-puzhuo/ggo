@@ -168,7 +168,7 @@ def train_and_predict(train_imgs_path, mode):
     print('Fitting model...')
     print('-' * 30)
 
-    nb_epoch = 5
+    nb_epoch = 2
     verbose = 1
 
     for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index in \
