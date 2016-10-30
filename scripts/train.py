@@ -172,7 +172,7 @@ def train_and_predict(train_imgs_path, mode):
     verbose = 1
 
     for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index in \
-            train_val_data_generator(train_imgs_path, train_batch_size=2, val_batch_size=1, img_rows=64, img_cols=64):
+            train_val_data_generator(train_imgs_path, train_batch_size=20, val_batch_size=0, img_rows=64, img_cols=64):
         print(train_imgs.shape)
 
         if mode == 'spark':
