@@ -29,8 +29,8 @@ logger.setLevel(logging.INFO)
 logging_handler_out = logging.StreamHandler(sys.stdout)
 logger.addHandler(logging_handler_out)
 
-img_rows = 128
-img_cols = 128
+img_rows = 64
+img_cols = 64
 
 smooth = 100
 
@@ -171,17 +171,15 @@ def train_and_predict(train_imgs_path, mode):
     nb_epoch = 5
     verbose = 1
 
-    for e in range(nb_epoch):
-        print("epoch %d" % e)
-        for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index in \
-                train_val_data_generator(train_imgs_path, train_batch_size=3, val_batch_size=1, img_rows=64, img_cols=64):
+    for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index in \
+            train_val_data_generator(train_imgs_path, train_batch_size=2, val_batch_size=1, img_rows=64, img_cols=64):
 
-            if mode == 'spark':
-                rdd = to_simple_rdd(sc, train_imgs, train_masks)
-                spark_model.train(rdd, batch_size=32, nb_epoch=nb_epoch, verbose=verbose, validation_split=0.1)
-            else:
-                model.fit(train_imgs, train_masks, batch_size=32, nb_epoch=nb_epoch, validation_data=(val_imgs, val_masks), verbose=verbose, shuffle=True,
-                          callbacks=[model_checkpoint])
+        if mode == 'spark':
+            rdd = to_simple_rdd(sc, train_imgs, train_masks)
+            spark_model.train(rdd, batch_size=32, nb_epoch=nb_epoch, verbose=verbose, validation_split=0.1)
+        else:
+            model.fit(train_imgs, train_masks, batch_size=32, nb_epoch=nb_epoch, validation_data=(val_imgs, val_masks), verbose=verbose, shuffle=True,
+                      callbacks=[model_checkpoint])
 
     '''
     print('-'*30)
