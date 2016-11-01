@@ -1,5 +1,7 @@
 ## GGO docs
 ### Install Docker
+### Install Cloudera docker image
+https://www.cloudera.com/documentation/enterprise/5-6-x/topics/quickstart_docker_container.html
 ### Install Python 2.7
 #### Install Python 2.7 with yum
 Install python 2.7
