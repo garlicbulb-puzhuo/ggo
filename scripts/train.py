@@ -2,6 +2,7 @@
 
 from __future__ import print_function
 
+from keras import models
 from keras.models import Model
 from keras.layers import Input, merge, Convolution2D, MaxPooling2D, UpSampling2D
 from keras.optimizers import Adam
@@ -170,19 +171,22 @@ def train_and_predict(train_imgs_path, mode):
 
     nb_epoch = 1
     verbose = 1
+    iteration = 1
 
     for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index in \
-            train_val_data_generator(train_imgs_path, train_batch_size=13, val_batch_size=0, img_rows=64, img_cols=64):
+            train_val_data_generator(train_imgs_path, train_batch_size=2, val_batch_size=1, img_rows=64, img_cols=64):
         print(train_imgs.shape)
 
         if mode == 'spark':
             rdd = to_simple_rdd(sc, train_imgs, train_masks)
             spark_model.train(rdd, batch_size=32, nb_epoch=nb_epoch, verbose=verbose, validation_split=0.1)
+            models.save_model(model, 'unet.model.%d.hdf5' % iteration)
+            model.save_weights('unet.weights.%d.hdf5' % iteration)
         else:
             model.fit(train_imgs, train_masks, batch_size=32, nb_epoch=nb_epoch, validation_data=(val_imgs, val_masks), verbose=verbose, shuffle=True,
                       callbacks=[model_checkpoint])
 
-        break
+        iteration += iteration
 
     '''
     print('-'*30)
