@@ -75,6 +75,24 @@ $ python
 >>> import cv2
 >>> print cv2.__version__
 ```
+### Checkout ggo repo
+```
+$ mkdir Developer
+$ cd Developer
+$ git clone https://github.com/garlicbulb-puzhuo/ggo.git
+```
+### Create virtualenv
+```
+$ virtualenv env
+$ source env/bin/activate
+$ pip install -r ggo/requirements.txt
+```
+### Install elephase
+```
+$ git clone https://github.com/maxpumperla/elephas.git
+$ cd elephas
+$ python setup.py install
+```
 ### Deep Learning Packages
 Install Theano
 http://deeplearning.net/software/theano/install.html
