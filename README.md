@@ -1,10 +1,6 @@
-
-### Benchmark
-
-@(Playground)
+### Install Docker
 ### Install Cloudera docker image
 https://www.cloudera.com/documentation/enterprise/5-6-x/topics/quickstart_docker_container.htm
-### Install Docker
 ### Install Python 2.7
 There are 2 ways to install python 2.7 on your local mac.
 #### Install Python 2.7 with yum
