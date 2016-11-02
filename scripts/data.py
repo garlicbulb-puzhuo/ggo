@@ -5,7 +5,7 @@ import os
 import logging
 import sys
 import shutil
-from img_mask_matching import get_img_mask_dict
+from data_proc import get_img_mask_dict
 import re
 import json
 
@@ -18,7 +18,7 @@ logger.addHandler(logging_handler_out)
 
 
 def parse_options():
-    parser = argparse.ArgumentParser(description='Process DICOM Images.')
+    parser = argparse.ArgumentParser(description='Merge DICOM Images.')
     parser.add_argument('--input_dir', metavar='input_dir', nargs='?',
                         help='input directory for source images')
     parser.add_argument('--mask_input_dir', metavar='mask_input_dir', nargs='?',
