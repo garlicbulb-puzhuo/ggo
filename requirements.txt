@@ -2,7 +2,6 @@ click==6.6
 cycler==0.10.0
 dask==0.11.1
 decorator==4.0.10
-elephas==0.3
 Flask==0.11.1
 funcsigs==1.0.2
 hyperas==0.2
