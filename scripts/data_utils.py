@@ -60,3 +60,9 @@ def train_val_data_generator(file, img_rows, img_cols, train_batch_size=5, val_b
         val_counter = train_counter + train_batch_size
         remaining -= train_batch_size + val_batch_size
         yield train_imgs, train_masks, train_index, val_imgs, val_masks, val_index
+
+
+def test_data_generator(file, img_rows, img_cols, iter=1):
+    for imgs, masks, index, val_imgs, val_masks, val_index in \
+            train_val_data_generator(file, train_batch_size=1, val_batch_size=0, img_rows=img_rows, img_cols=img_cols, iter=iter):
+        yield imgs, masks, index

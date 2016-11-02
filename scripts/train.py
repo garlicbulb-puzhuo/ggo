@@ -19,8 +19,7 @@ import argparse
 import sys
 import logging
 
-from data_proc import train_val_data_generator, test_data_generator
-from data_utils import train_val_data_generator
+from data_utils import train_val_data_generator, test_data_generator
 
 
 logger = logging.getLogger()
@@ -198,7 +197,8 @@ def train_and_predict(train_imgs_path, mode):
     imgs_test = imgs_test.astype('float32')
     imgs_test -= mean
     imgs_test /= std
-'''
+    '''
+    
     print('-' * 30)
     print('Loading and preprocessing test data...')
     print('-' * 30)
@@ -214,7 +214,6 @@ def train_and_predict(train_imgs_path, mode):
         print('-' * 30)
         mask_test = model.predict(imgs, verbose=1)
         print(mask_test)
-
 
 
 def parse_options():
