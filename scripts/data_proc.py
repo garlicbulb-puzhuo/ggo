@@ -264,8 +264,9 @@ def load_data_from_hdf5(file, patientID, patient_group_dict):
     ix = indices[:, 0] == patientID
     return imgs[ix, :, :, :], masks[ix, :, :, :], indices[ix, :]
 
+
 # train_batch_size: number of train patients; val_batch_size: number of validation patients; iter: number of (train, val) generator
-def train_val_data_generator(file, img_rows, img_cols, train_batch_size=5, val_batch_size=2, iter = 5):
+def train_val_data_generator(file, img_rows, img_cols, train_batch_size=5, val_batch_size=2, iter=5):
     f = h5py.File(file, 'r')
     f.visititems(list_all_patients)
     p_list = patient_group_dict.keys()

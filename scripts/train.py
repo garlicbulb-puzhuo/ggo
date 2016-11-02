@@ -198,7 +198,7 @@ def train_and_predict(train_imgs_path, mode):
     imgs_test -= mean
     imgs_test /= std
     '''
-    
+
     print('-' * 30)
     print('Loading and preprocessing test data...')
     print('-' * 30)
