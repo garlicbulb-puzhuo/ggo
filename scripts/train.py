@@ -186,7 +186,7 @@ def train_and_predict(train_imgs_path, mode):
             model.fit(train_imgs, train_masks, batch_size=32, nb_epoch=nb_epoch, validation_data=(val_imgs, val_masks), verbose=verbose, shuffle=True,
                       callbacks=[model_checkpoint])
 
-        iteration += iteration
+        iteration += 1
 
     '''
     print('-'*30)
