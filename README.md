@@ -100,6 +100,11 @@ Install python package locally, for example, elephas
 ```
 $ python setup.py install
 ```
+### Useful docker commands
+Copy file from mac to docker environment
+```
+docker cp train_data.hdf5 d829d359a210:/
+```
 ### MISC
 Impersonate cloudera user
 ```
