@@ -1,8 +1,12 @@
-## GGO docs
-### Install Docker
+
+### Benchmark
+
+@(Playground)
 ### Install Cloudera docker image
-https://www.cloudera.com/documentation/enterprise/5-6-x/topics/quickstart_docker_container.html
+https://www.cloudera.com/documentation/enterprise/5-6-x/topics/quickstart_docker_container.htm
+### Install Docker
 ### Install Python 2.7
+There are 2 ways to install python 2.7 on your local mac.
 #### Install Python 2.7 with yum
 Install python 2.7
 ```
@@ -14,22 +18,13 @@ Enable python 2.7
 $ source /opt/rh/python27/enable
 ```
 #### Install Python 2.7  from scratch
-https://github.com/h2oai/h2o-2/wiki/installing-python-2.7-on-centos-6.3.-follow-this-sequence-exactly-for-centos-machine-only
+Follow steps on this tutorial: https://github.com/h2oai/h2o-2/wiki/installing-python-2.7-on-centos-6.3.-follow-this-sequence-exactly-for-centos-machine-only
+
 One caveat is that you need to configure python building environment as below
 ```
 ./configure --enable-shared \
             --prefix=/usr/local \
             LDFLAGS="-Wl,--rpath=/usr/local/lib"
-```
-### MISC
-Impersonate cloudera user
-```
-$ sudo -i -u cloudera
-```
-Upgrade python packages installed by pip
-```
-$ pip install pip-review
-$ pip-review --local --interactive
 ```
 ### Install opencv
 #### Install opencv on Mac OS
@@ -90,3 +85,15 @@ http://deeplearning.net/software/theano/install.html
 Install python package locally, for example, elephas
 ```
 $ python setup.py install
+```
+### MISC
+Impersonate cloudera user
+```
+$ sudo -i -u cloudera
+```
+Upgrade python packages installed by pip
+```
+$ pip install pip-review
+$ pip-review --local --interactive
+```
+
