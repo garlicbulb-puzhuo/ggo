@@ -442,8 +442,8 @@ def parse_options():
 
 
 if __name__ == '__main__':
-    img_rows = 64
-    img_cols = 64
+    img_rows = 128 
+    img_cols = 128 
 
     args = parse_options()
     # train_imgs, train_masks, train_index = create_train_data(args.img_dir, args.mask_dir, args.output_dir)
