@@ -168,12 +168,12 @@ def train_and_predict(train_imgs_path, mode):
     print('Fitting model...')
     print('-' * 30)
 
-    nb_epoch = 1
+    nb_epoch = 20 
     verbose = 1
     iteration = 1
 
     for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index in \
-            train_val_data_generator(train_imgs_path, train_batch_size=2, val_batch_size=1, img_rows=img_rows, img_cols=img_cols):
+            train_val_data_generator(train_imgs_path, train_batch_size=10, val_batch_size=0, img_rows=img_rows, img_cols=img_cols):
         print(train_imgs.shape)
 
         if mode == 'spark':
