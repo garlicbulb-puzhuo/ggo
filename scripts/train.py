@@ -168,7 +168,7 @@ def train_and_predict(train_imgs_path, mode):
     print('Fitting model...')
     print('-' * 30)
 
-    nb_epoch = 20 
+    nb_epoch = 50 
     verbose = 1
     iteration = 1
 
