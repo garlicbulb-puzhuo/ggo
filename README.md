@@ -94,10 +94,15 @@ $ cd elephas
 $ python setup.py install
 ```
 ### Deep Learning Packages
-Install Theano
+* Install Theano
 http://deeplearning.net/software/theano/install.html
+* Install python package locally, for example, elephas
+* Install Theano dependencies
+For Ubuntu: http://deeplearning.net/software/theano/install_ubuntu.html
+For CentOs: http://deeplearning.net/software/theano/install_centos6.html
 Install python package locally, for example, elephas
 ```
+$ cd <elephas>
 $ python setup.py install
 ```
 ### Useful docker commands
