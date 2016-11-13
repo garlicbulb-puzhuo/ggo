@@ -116,6 +116,7 @@ def get_unet():
 def get_spark_model(model):
     from elephas.spark_model import SparkModel
     from elephas import optimizers as elephas_optimizers
+    from pyspark import SparkContext, SparkConf
 
     conf = SparkConf().setAppName('Spark_Backend')
     sc = SparkContext(conf=conf)
@@ -147,12 +148,8 @@ def train_val_split(imgs, masks, index, split_ratio = 0.1):
 '''
 
 
-
-
-
 def train(train_imgs_path, train_mode):
     from elephas.utils.rdd_utils import to_simple_rdd
-    from pyspark import SparkContext, SparkConf
 
     print('-' * 30)
     print('Loading and preprocessing train data...')
