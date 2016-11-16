@@ -9,11 +9,11 @@ from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint
 from keras import backend as K
 
-from elephas.spark_model import SparkModel
-from elephas import optimizers as elephas_optimizers
-from elephas.utils.rdd_utils import to_simple_rdd
-
-from pyspark import SparkContext, SparkConf
+# from elephas.spark_model import SparkModel
+# from elephas import optimizers as elephas_optimizers
+# from elephas.utils.rdd_utils import to_simple_rdd
+#
+# from pyspark import SparkContext, SparkConf
 
 import argparse
 import sys
@@ -114,6 +114,10 @@ def get_unet():
 
 
 def get_spark_model(model):
+    from elephas.spark_model import SparkModel
+    from elephas import optimizers as elephas_optimizers
+    from pyspark import SparkContext, SparkConf
+
     conf = SparkConf().setAppName('Spark_Backend')
     sc = SparkContext(conf=conf)
     adagrad = elephas_optimizers.Adagrad()
@@ -144,31 +148,26 @@ def train_val_split(imgs, masks, index, split_ratio = 0.1):
 '''
 
 
-def train_and_predict(train_imgs_path, mode):
+def train(train_imgs_path, train_mode):
+    from elephas.utils.rdd_utils import to_simple_rdd
+
     print('-' * 30)
     print('Loading and preprocessing train data...')
     print('-' * 30)
 
-    #train_imgs_p, m, st = preprocessing_imgs (train_imgs,reduced_size=(img_rows, img_cols))
-    #train_masks_p = preprocessing_masks(train_masks,reduced_size=(img_rows, img_cols))
-
-    #train_imgs, train_masks, train_index, val_imgs, val_masks, val_index = train_val_split(train_imgs_p, train_masks_p, train_index, split_ratio = 0.1)
     print('-' * 30)
     print('Creating and compiling model...')
     print('-' * 30)
     model = get_unet()
 
-    if mode == 'spark':
+    if train_mode == 'spark':
         sc, spark_model = get_spark_model(model)
-
-    model_checkpoint = ModelCheckpoint(
-        'unet.hdf5', monitor='loss', save_best_only=True)
 
     print('-' * 30)
     print('Fitting model...')
     print('-' * 30)
 
-    nb_epoch = 50 
+    nb_epoch = 50
     verbose = 1
     iteration = 1
 
@@ -176,12 +175,27 @@ def train_and_predict(train_imgs_path, mode):
             train_val_data_generator(train_imgs_path, train_batch_size=10, val_batch_size=0, img_rows=img_rows, img_cols=img_cols):
         print(train_imgs.shape)
 
-        if mode == 'spark':
+        if train_mode == 'spark':
+            from elephas.spark_model import HistoryCallback
+
+            class GgoHistoryCallback(HistoryCallback):
+                def __init__(self):
+                    pass
+
+                def on_receive_history(self, history, metadata):
+                    # list all data in history
+                    print("history and metadata keys: {0}, {1}".format(history.history.keys(), metadata.keys()))
+                    print("history and metadata values: {0}, {1}".format(history.history.values(), metadata.values()))
+
+            history_callback = GgoHistoryCallback()
             rdd = to_simple_rdd(sc, train_imgs, train_masks)
-            spark_model.train(rdd, batch_size=32, nb_epoch=nb_epoch, verbose=verbose, validation_split=0.1)
-            models.save_model(model, 'unet.model.%d.hdf5' % iteration)
+            spark_model.train(rdd, batch_size=32, nb_epoch=nb_epoch, verbose=verbose, validation_split=0.1, history_callback=history_callback)
+            model.save('unet.model1.%d.hdf5' % iteration)
+            models.save_model(model, 'unet.model2.%d.hdf5' % iteration)
             model.save_weights('unet.weights.%d.hdf5' % iteration)
         else:
+            model_checkpoint = ModelCheckpoint(
+                'unet.hdf5', monitor='loss', save_best_only=True)
             model.fit(train_imgs, train_masks, batch_size=32, nb_epoch=nb_epoch, validation_data=(val_imgs, val_masks), verbose=verbose, shuffle=True,
                       callbacks=[model_checkpoint])
 
@@ -205,10 +219,13 @@ def train_and_predict(train_imgs_path, mode):
     print('Loading saved weights...')
     print('-' * 30)
 
-    model.load_weights('unet.hdf5')
+
+def predict(model_file_path, test_imgs_path):
+    model = get_unet()
+    model.load_weights(model_file_path)
     print(model.layers)
-    test_file = '../../../test_data.hdf5'
-    for imgs, masks, index in test_data_generator(test_file, img_rows, img_cols, iter=2):
+
+    for imgs, masks, index in test_data_generator(test_imgs_path, img_rows, img_cols, iter=2):
         print('-' * 30)
         print('Predicting masks on test data...')
         print('-' * 30)
@@ -216,16 +233,39 @@ def train_and_predict(train_imgs_path, mode):
         print(mask_test)
 
 
-def parse_options():
+def get_parser():
     parser = argparse.ArgumentParser(description='Train model.')
+    parser.add_argument('--train', dest='train', action='store_true', help='train the model')
     parser.add_argument('--train_imgs_path', metavar='train_imgs_path', nargs='?',
-                        help='input directory for images and masks in the training set', required=True)
-    parser.add_argument('--mode', metavar='mode', nargs='?',
-                        help='mode to train your model, can be either spark or standalone', required=True)
+                        help='input HD5 file for images and masks in the training set')
+    parser.add_argument('--train_mode', metavar='train_mode', nargs='?',
+                        help='mode to train your model, can be either spark or standalone')
+    parser.add_argument('--predict', dest='predict', action='store_true', help='predict the model')
+    parser.add_argument('--test_imgs_path', metavar='test_imgs_path', nargs='?',
+                        help='input HD5 file for images and masks in the test set')
+    parser.add_argument('--model_file_path', metavar='model_file_path', nargs='?',
+                        help='the HD5 file to store the model and weights')
 
-    return parser.parse_args()
+    return parser
 
 if __name__ == '__main__':
-    args = parse_options()
-    print("train images path %s" % args.train_imgs_path)
-    train_and_predict(train_imgs_path=args.train_imgs_path, mode=args.mode)
+    parser = get_parser()
+    args = parser.parse_args()
+
+    print(args)
+
+    if not args.train and not args.predict:
+        parser.error('Required to set either --train or --predict option')
+
+    if args.train and (args.train_imgs_path is None or args.train_mode is None):
+        parser.error('arguments --train_imgs_path and --train_mode are required when --train is specified')
+
+    if args.predict and (args.test_imgs_path is None or args.model_file_path is None):
+        parser.error('arguments --test_imgs_path and --model_file_path are required when --predict is specified')
+
+    if args.train:
+        print("train images path %s" % args.train_imgs_path)
+        train(train_imgs_path=args.train_imgs_path, train_mode=args.train_mode)
+
+    if args.predict:
+        predict(model_file_path=args.model_file_path, test_imgs_path=args.test_imgs_path)
