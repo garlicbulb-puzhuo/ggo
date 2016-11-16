@@ -167,7 +167,7 @@ def train(train_imgs_path, train_mode):
     print('Fitting model...')
     print('-' * 30)
 
-    nb_epoch = 50 
+    nb_epoch = 50
     verbose = 1
     iteration = 1
 
