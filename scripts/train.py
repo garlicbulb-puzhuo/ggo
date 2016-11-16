@@ -155,10 +155,6 @@ def train(train_imgs_path, train_mode):
     print('Loading and preprocessing train data...')
     print('-' * 30)
 
-    #train_imgs_p, m, st = preprocessing_imgs (train_imgs,reduced_size=(img_rows, img_cols))
-    #train_masks_p = preprocessing_masks(train_masks,reduced_size=(img_rows, img_cols))
-
-    #train_imgs, train_masks, train_index, val_imgs, val_masks, val_index = train_val_split(train_imgs_p, train_masks_p, train_index, split_ratio = 0.1)
     print('-' * 30)
     print('Creating and compiling model...')
     print('-' * 30)
@@ -186,11 +182,12 @@ def train(train_imgs_path, train_mode):
                 def __init__(self):
                     pass
 
-                def on_receive_history(self, history):
+                def on_receive_history(self, history, metadata):
                     # list all data in history
-                    print(history.history.keys())
+                    print("history and metadata keys: {0}, {1}".format(history.history.keys(), metadata.keys()))
+                    print("history and metadata values: {0}, {1}".format(history.history.values(), metadata.values()))
 
-            history_callback = GgoHistoryCallback
+            history_callback = GgoHistoryCallback()
             rdd = to_simple_rdd(sc, train_imgs, train_masks)
             spark_model.train(rdd, batch_size=32, nb_epoch=nb_epoch, verbose=verbose, validation_split=0.1, history_callback=history_callback)
             model.save('unet.model1.%d.hdf5' % iteration)
