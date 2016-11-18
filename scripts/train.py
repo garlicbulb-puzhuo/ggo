@@ -24,10 +24,8 @@ logger.setLevel(logging.INFO)
 logging_handler_out = logging.StreamHandler(sys.stdout)
 logger.addHandler(logging_handler_out)
 
-smooth = 100
 
-
-def dice_coef(y_true, y_pred):
+def dice_coef(y_true, y_pred, smooth=100):
     y_true_f = K.flatten(y_true)
     y_pred_f = K.flatten(y_pred)
     intersection = K.sum(y_true_f * y_pred_f)
@@ -151,9 +149,16 @@ def train(train_imgs_path, train_mode, train_config):
     print('-' * 30)
     print('Creating and compiling model...')
     print('-' * 30)
+
     img_rows = int(train_config.get('img_rows'))
     img_cols = int(train_config.get('img_cols'))
-    model = get_unet(img_rows, img_cols)
+
+    ### import model
+    from model_2 import get_unet_BN
+    input_shape = (1, img_rows, img_cols)
+
+    train_output = 'unet123_BN.hdf5'
+    model = get_unet_BN(input_shape)
 
     if train_mode == 'spark':
         sc, spark_model = get_spark_model(model)
