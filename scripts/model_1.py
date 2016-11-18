@@ -7,12 +7,13 @@ from keras.callbacks import ModelCheckpoint, LearningRateScheduler
 from keras import backend as K
 from train import dice_coef, dice_coef_loss
 
-def get_unet(input_shape = (1, 128, 128), lr=1e-5):
+
+def get_unet(input_shape=(1, 128, 128), lr=1e-5):
     inputs = Input(input_shape)
     conv1 = Convolution2D(32, 3, 3, activation='relu',
                           border_mode='same')(inputs)
     conv1 = Convolution2D(32, 3, 3, activation='relu',
-                          border_mode='same')(conv1) 
+                          border_mode='same')(conv1)
     pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
 
     conv2 = Convolution2D(64, 3, 3, activation='relu',
