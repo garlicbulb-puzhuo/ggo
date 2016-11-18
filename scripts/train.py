@@ -9,12 +9,7 @@ from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint
 from keras import backend as K
 
-# from elephas.spark_model import SparkModel
-# from elephas import optimizers as elephas_optimizers
-# from elephas.utils.rdd_utils import to_simple_rdd
-#
-# from pyspark import SparkContext, SparkConf
-
+import ConfigParser
 import argparse
 import sys
 import logging
@@ -28,9 +23,6 @@ logger.setLevel(logging.INFO)
 # match images and masks
 logging_handler_out = logging.StreamHandler(sys.stdout)
 logger.addHandler(logging_handler_out)
-
-img_rows = 128
-img_cols = 128
 
 smooth = 100
 
@@ -46,7 +38,7 @@ def dice_coef_loss(y_true, y_pred):
     return -dice_coef(y_true, y_pred)
 
 
-def get_unet():
+def get_unet(img_rows, img_cols):
     inputs = Input((1, img_rows, img_cols))
     conv1 = Convolution2D(32, 3, 3, activation='relu',
                           border_mode='same')(inputs)
@@ -149,7 +141,7 @@ def train_val_split(imgs, masks, index, split_ratio = 0.1):
 '''
 
 
-def train(train_imgs_path, train_mode):
+def train(train_imgs_path, train_mode, train_config):
     from elephas.utils.rdd_utils import to_simple_rdd
 
     print('-' * 30)
@@ -159,7 +151,9 @@ def train(train_imgs_path, train_mode):
     print('-' * 30)
     print('Creating and compiling model...')
     print('-' * 30)
-    model = get_unet()
+    img_rows = int(train_config.get('img_rows'))
+    img_cols = int(train_config.get('img_cols'))
+    model = get_unet(img_rows, img_cols)
 
     if train_mode == 'spark':
         sc, spark_model = get_spark_model(model)
@@ -168,12 +162,14 @@ def train(train_imgs_path, train_mode):
     print('Fitting model...')
     print('-' * 30)
 
-    nb_epoch = 50
+    nb_epoch = train_config('nb_epoch')
+    train_batch_size = train_config('train_batch_size')
+    val_batch_size = train_config('val_batch_size')
     verbose = 1
     iteration = 1
 
     for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index in \
-            train_val_data_generator(train_imgs_path, train_batch_size=10, val_batch_size=0, img_rows=img_rows, img_cols=img_cols):
+            train_val_data_generator(train_imgs_path, train_batch_size=train_batch_size, val_batch_size=val_batch_size, img_rows=img_rows, img_cols=img_cols):
         print(train_imgs.shape)
 
         if train_mode == 'spark':
@@ -225,8 +221,10 @@ def train(train_imgs_path, train_mode):
     print('-' * 30)
 
 
-def predict(model_file_path, test_imgs_path):
-    model = get_unet()
+def predict(model_file_path, test_imgs_path, config):
+    img_rows = int(config.get('img_rows'))
+    img_cols = int(config.get('img_cols'))
+    model = get_unet(img_rows=img_rows, img_cols=img_cols)
     model.load_weights(model_file_path)
     print(model.layers)
 
@@ -246,6 +244,8 @@ def get_parser():
                         help='input HD5 file for images and masks in the training set')
     parser.add_argument('--train_mode', metavar='train_mode', nargs='?',
                         help='mode to train your model, can be either spark or standalone')
+    parser.add_argument('--config_file', metavar='config_file', nargs='?',
+                        help='config file for your training and prediction')
     parser.add_argument('--predict', dest='predict',
                         action='store_true', help='predict the model')
     parser.add_argument('--test_imgs_path', metavar='test_imgs_path', nargs='?',
@@ -272,10 +272,16 @@ if __name__ == '__main__':
         parser.error(
             'arguments --test_imgs_path and --model_file_path are required when --predict is specified')
 
+    config = ConfigParser.ConfigParser()
+    config.read(args.config_file)
+    data_config = dict(config.items('config'))
+
     if args.train:
         print("train images path %s" % args.train_imgs_path)
-        train(train_imgs_path=args.train_imgs_path, train_mode=args.train_mode)
+        train(train_imgs_path=args.train_imgs_path,
+              train_mode=args.train_mode, train_config=data_config)
 
     if args.predict:
         predict(model_file_path=args.model_file_path,
-                test_imgs_path=args.test_imgs_path)
+                test_imgs_path=args.test_imgs_path,
+                config=data_config)
