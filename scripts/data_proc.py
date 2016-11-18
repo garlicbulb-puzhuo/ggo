@@ -86,14 +86,16 @@ def get_img_mask_dict(img_dir, mask_dir):
 # read data from src_dirs, write to des_file in HDF5 binary; Scale image & mask to reduced_size; if augmentation > 1, generate # of 'augmentation' images for each ggo image. 
 
 
-def create_data(src_dirs, des_file, normalization = True, reduced_size = None, augmentation = 1):
-    if normalization and reduced_size != None: 
+def create_data(src_dirs, des_file, normalization = True, reduced_size = None, ggo_aug = 1, crop = False):
+    if crop: 
+        img_rows = 360
+        img_cols = 430
+    elif normalization and reduced_size != None: 
         img_rows = reduced_size[0]
         img_cols = reduced_size[1]
     else: 
         img_rows = 512
         img_cols = 512
-    #f = h5py.File(os.path.join(des_dir, "train_data.hdf5"), "w")
     f = h5py.File(des_file, "w")
     for img_dir in src_dirs:
         imgs = []
@@ -112,7 +114,12 @@ def create_data(src_dirs, des_file, normalization = True, reduced_size = None, a
                     except InvalidDicomError:
                         print 'Invalid Dicom file {0}'.format(img)
                     img_pixel = np.array(img.pixel_array)
-                    img_pixel = cv2.resize(img_pixel, (img_cols, img_rows), interpolation=cv2.INTER_CUBIC)
+                    if crop: 
+                        img_pixel = img_pixel[90:450,40:470]
+                        plt.imshow(img_pixel)
+                        plt.show()
+                    if reduced_size != None: 
+                        img_pixel = cv2.resize(img_pixel, (img_cols, img_rows), interpolation=cv2.INTER_CUBIC)
                     has_ggo = False
                     if hasattr(img, 'BodyPartExamined'):
                         body_part = img.BodyPartExamined
@@ -120,8 +127,10 @@ def create_data(src_dirs, des_file, normalization = True, reduced_size = None, a
                         body_part = None
                     if mask_path != None:
                         mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-                        mask = cv2.resize(mask, (img_cols, img_rows), interpolation=cv2.INTER_CUBIC)
-#                        mask = np.array([mask])
+                        if crop: 
+                            mask = mask[90:450,40:470]
+                        if reduced_size != None: 
+                            mask = cv2.resize(mask, (img_cols, img_rows), interpolation=cv2.INTER_CUBIC)
                         has_ggo = True
                     else:
                         mask = np.full((img_rows, img_cols), 255, dtype=np.uint8)
@@ -132,8 +141,8 @@ def create_data(src_dirs, des_file, normalization = True, reduced_size = None, a
                     imgs.append([img_pixel])
                     masks.append([mask])
                     indices.append(index)
-                    if augmentation > 1 and has_ggo:
-                        for i in range(augmentation):
+                    if ggo_aug > 1 and has_ggo:
+                        for i in range(ggo_aug):
                             img_tf, mask_tf = transform(img_pixel,mask)
                             counter += 1
                             index = np.array([p, str(counter), str(has_ggo), str(body_part)])
@@ -148,11 +157,11 @@ def create_data(src_dirs, des_file, normalization = True, reduced_size = None, a
             imgs -= m
             st = np.std(imgs).astype(np.float32)
             imgs /= st
-            m = np.mean(masks).astype(np.float32)
-            masks -= m
-            st = np.std(masks).astype(np.float32)
-            masks /= (st+1e-6)
-            print 'std --- '+str(st)
+            masks = np.asarray(masks)
+            masks /= 255
+            masks[masks<0.5] = 0
+            masks[masks>=0.5] = 1 
+            masks.astype(int)
         imgs = np.array(imgs)
         np.reshape(imgs, (len(imgs), 1, img_rows, img_cols))
         masks = np.array(masks)
@@ -236,10 +245,7 @@ def train_val_data_generator(file, img_rows, img_cols, train_batch_size=5, val_b
 def test_data_generator(file, img_rows, img_cols, iter = 1):
     for imgs, masks, index, val_imgs, val_masks, val_index in \
                 train_val_data_generator(file, train_batch_size=1, val_batch_size=0, img_rows = img_rows, img_cols = img_cols, iter = iter): 
-                
                 yield imgs, masks, index
-
-
 
 def transform_train_data_generator(file, train_batch_size = 5, normalization = True, reduced_size=None, augmentationfactor = 1): 
     f = h5py.File(file, 'r')
@@ -383,14 +389,15 @@ def preprocessing_masks(train_masks, reduced_size=None):
 
 if __name__ == '__main__':
     #img_dict = get_img_mask_dict('../../../CA1', '../../../CA1_MASK')
-    train_dirs = ['../../../CA1', '../../../CA2', '../../../CA3']
-    train_file = '../../../train_data.hdf5'
+    #train_dirs = ['../../../CA1', '../../../CA2', '../../../CA3']
+    #train_dirs = ['../../../CA1']
+    #train_file = '../../../train_data_123.hdf5'
     img_rows = 64
     img_cols = 64
-    train_imgs, train_masks, train_index = create_data(train_dirs, train_file, normalization = True, reduced_size = [img_rows, img_cols], augmentation = 20)
-    #dirs = ['../../../CA5', '../../../CA6', '../../../CA7']
-    #file = '../../../test_data.hdf5'
-    #create_data(dirs, file, normalization = True, reduced_size = [img_rows, img_cols], augmentation = 20)
+    #train_imgs, train_masks, train_index = create_data(train_dirs, train_file, normalization = True, reduced_size = [img_rows, img_cols], ggo_aug = 20, crop = False)
+    dirs = ['../../../CA5', '../../../CA6', '../../../CA7']
+    file = '../../../test_data567.hdf5'
+    create_data(dirs, file, normalization = True, reduced_size = [img_rows, img_cols], ggo_aug = 20, crop=False)
     #for imgs, masks, index in test_data_generator(file, img_rows, img_cols, iter = 10): 
     #    print imgs.shape 
     # train_val_data_generator('../../../train_data.hdf5')
