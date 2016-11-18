@@ -1,9 +1,11 @@
-import h5py 
+import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 
 #filename = '../../../unet.model.1.hdf5'
 filename = 'unet.hdf5'
+
+
 def print_structure(file_name):
     """
     Prints out the structure of HDF5 file.
@@ -19,19 +21,19 @@ def print_structure(file_name):
         for key, value in f.attrs.items():
             print("  {}: {}".format(key, value))
 
-        print "#"*200
+        print "#" * 200
 
-        if len(f.items())==0:
-            return 
+        if len(f.items()) == 0:
+            return
 
         for layer, g in f.items():
-            print "-"*200
+            print "-" * 200
             print("  {}".format(layer))
             print("    Attributes:")
             for key, value in g.attrs.items():
                 print("      {}: {}".format(key, value))
                 print(len(value))
-                if (key == "layer_names"): 
+                if (key == "layer_names"):
                     layer_names = value
             print("    Dataset:")
             for p_name in g.keys():
@@ -39,10 +41,10 @@ def print_structure(file_name):
                 print p_name
                 print("      {}: {}".format(p_name, param))
                 for key, value in param.attrs.items():
-                    print ("{}:{}".format(key,value))
-                    for key in param.keys(): 
-                	   weights = param[key]
-                	   print(weights)
+                    print ("{}:{}".format(key, value))
+                    for key in param.keys():
+                        weights = param[key]
+                        print(weights)
     finally:
         f.close()
-    return  layer_names
+    return layer_names
