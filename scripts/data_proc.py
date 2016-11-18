@@ -14,6 +14,7 @@ from scipy.ndimage.filters import gaussian_filter
 import numpy.random as random
 import skimage.transform as tf
 import h5py
+import ConfigParser
 import argparse
 import sys
 from data_utils import train_val_data_generator, test_data_generator
@@ -96,16 +97,16 @@ def get_img_mask_dict(img_dir, mask_dir):
 # images for each ggo image.
 
 
-def create_data(src_dirs, des_dir, normalization=True, reduced_size=None, ggo_aug=1, crop=False):
-    if crop:
-        img_rows = 360
-        img_cols = 430
+def create_data(src_dirs, des_dir, original_size, normalization=True, reduced_size=None, ggo_aug=1, crop=False, cropped_size=None):
+    if crop and cropped_size:
+        img_rows = int(cropped_size[0])
+        img_cols = int(cropped_size[1])
     elif normalization and reduced_size != None:
-        img_rows = reduced_size[0]
-        img_cols = reduced_size[1]
+        img_rows = int(reduced_size[0])
+        img_cols = int(reduced_size[1])
     else:
-        img_rows = 512
-        img_cols = 512
+        img_rows = int(original_size[0])
+        img_cols = int(original_size[1])
     des_file = os.path.join(des_dir, "train_data.hdf5")
     f = h5py.File(des_file, "w")
     for img_dir in src_dirs:
@@ -127,8 +128,6 @@ def create_data(src_dirs, des_dir, normalization=True, reduced_size=None, ggo_au
                     img_pixel = np.array(img.pixel_array)
                     if crop:
                         img_pixel = img_pixel[90:450, 40:470]
-                        plt.imshow(img_pixel)
-                        plt.show()
                     if reduced_size != None:
                         img_pixel = cv2.resize(
                             img_pixel, (img_cols, img_rows), interpolation=cv2.INTER_CUBIC)
@@ -188,69 +187,6 @@ def create_data(src_dirs, des_dir, normalization=True, reduced_size=None, ggo_au
         dset = grp.create_dataset("indices", data=indices)
     print 'Loading done.'
     print 'Saving to h5py files done'
-    return imgs, masks, indices
-
-
-# read data from train_dirs, write to dest_dir in HDF5 binary
-def create_train_data_single(img_dir, mask_dir, dest_dir):
-    imgs = []
-    masks = []
-    indices = []
-    leaf_dir_name = os.path.basename(os.path.normpath(img_dir))
-    dir_name = os.path.join(dest_dir, leaf_dir_name)
-    if not os.path.exists(dir_name):
-        os.makedirs(dir_name)
-    # train_imgs_save_to = os.path.join(dir_name, 'train_imgs.npy')
-    # train_masks_save_to = os.path.join(dir_name, 'train_masks.npy')
-    # train_index_save_to = os.path.join(dir_name, 'train_index.npy')
-    img_dict = get_img_mask_dict(img_dir, mask_dir)
-
-    counter = 0
-
-    for p in img_dict.keys():
-        for s in img_dict[p]['img_series'].keys():
-            for img_path, mask_path in zip(img_dict[p]['img_series'][s]['imgs'], img_dict[p]['img_series'][s]['masks']):
-                try:
-                    img = dicom.read_file(img_path)
-                except IOError:
-                    print 'No such file'
-                except InvalidDicomError:
-                    print 'Invalid Dicom file {0}'.format(img)
-                img_pixel = np.array(img.pixel_array)
-                if img_pixel.shape[0] != 512 or img_pixel.shape[1] != 512:
-                    img_pixel = cv2.resize(
-                        img_pixel, (512, 512), interpolation=cv2.INTER_CUBIC)
-                has_ggo = False
-                if hasattr(img, 'BodyPartExamined'):
-                    body_part = img.BodyPartExamined
-                else:
-                    body_part = None
-                if mask_path != None:
-                    mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-                    mask = np.array([mask])
-                    has_ggo = True
-                else:
-                    mask = np.full((512, 512), 255, dtype=np.uint8)
-                    mask = np.array([mask])
-                counter += 1
-                index = np.array(
-                    [p, str(counter), str(has_ggo), str(body_part)])
-                imgs.append([img_pixel])
-                masks.append(mask)
-                indices.append(index)
-                if counter % 100 == 0:
-                    print 'Done: {0} images'.format(counter)
-    imgs = np.array(imgs)
-    np.reshape(imgs, (len(imgs), 1, 512, 512))
-    masks = np.array(masks)
-    indices = np.array(indices)
-
-    print 'Loading done.'
-
-    #np.save(train_imgs_save_to, imgs)
-    #np.save(train_masks_save_to, masks)
-    #np.save(train_index_save_to, imgs_id)
-    # print 'Saving to .py files done'
     return imgs, masks, indices
 
 
@@ -314,8 +250,6 @@ def transform_train_data_generator(file, train_batch_size=5, normalization=True,
             for j in range(augmentationfactor):
                 train_imgs_tf[count][0], train_masks_tf[count][0] = transform(
                     train_imgs[count][0], train_masks[count][0])
-#                plt.imshow(train_imgs[count][0]-train_imgs[count][0])
-#                plt.show()
                 count += 1
         train_imgs_p, m, st = preprocessing_imgs(train_imgs_tf, reduced_size)
         train_masks_p = preprocessing_masks(train_masks_tf, reduced_size)
@@ -457,29 +391,39 @@ def parse_options():
                         help='input directory for source images and masks', required=True)
     parser.add_argument('--output_dir', metavar='output_dir', nargs='?',
                         help='output directory', required=True)
+    parser.add_argument('--config_file', metavar='config_file', nargs='?',
+                        help='config file', required=True)
 
     return parser.parse_args()
 
 
 if __name__ == '__main__':
-    img_rows = 128
-    img_cols = 128
-
     args = parse_options()
-    # train_imgs, train_masks, train_index = create_train_data(args.img_dir, args.mask_dir, args.output_dir)
-    # print train_imgs.shape, train_masks.shape
+
+    config = ConfigParser.ConfigParser()
+    config.read(args.config_file)
+    data_config = dict(config.items('config'))
+
+    img_rows = data_config.get('img_rows', 512)
+    img_cols = data_config.get('img_cols', 512)
+
+    reduced_img_rows = data_config.get('reduced_img_rows', None)
+    reduced_img_cols = data_config.get('reduced_img_cols', None)
+
+    cropped_img_rows = data_config.get('cropped_img_rows', None)
+    cropped_img_cols = data_config.get('cropped_img_cols', None)
+
+    ggo_aug = data_config.get('ggo_aug', 20)
+
+    reduced_size = None
+    if reduced_img_rows and reduced_img_cols:
+        reduced_size = [reduced_img_rows, reduced_img_cols]
+
+    cropped_size = None
+    if cropped_img_rows and cropped_img_cols:
+        reduced_size = [cropped_img_rows, cropped_img_cols]
 
     train_imgs, train_masks, train_index = create_data(
-        args.input_dirs, args.output_dir, normalization=True, reduced_size=[img_rows, img_cols], ggo_aug=20, crop=False)
-
-    # print train_imgs.shape, train_masks.shape
-    # train_val_data_generator('../../../train_data.hdf5')
-    # train_imgs, train_masks, train_index = load_train_data("../../../")
-    # train_imgs_p, m, st = preprocessing_imgs (train_imgs,reduced_size=(128,128))
-
-    # train_imgs_p, m, st = preprocessing_imgs(train_imgs, reduced_size=(128,128))
-    # print train_imgs_p.shape, m, st
-    # train_masks_p = preprocessing_masks(train_masks,reduced_size=(128,128))
-    # plt.imshow(train_imgs[0])
-    # plt.imshow(train_masks[0,0])
-    # plt.show()
+        args.input_dirs, args.output_dir, original_size=[
+            img_rows, img_cols], normalization=True, reduced_size=reduced_size, ggo_aug=ggo_aug, crop=False,
+        cropped_size=[cropped_img_rows, cropped_img_cols])
