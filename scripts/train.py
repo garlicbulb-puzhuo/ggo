@@ -29,8 +29,8 @@ logger.setLevel(logging.INFO)
 logging_handler_out = logging.StreamHandler(sys.stdout)
 logger.addHandler(logging_handler_out)
 
-img_rows = 128 
-img_cols = 128 
+img_rows = 128
+img_cols = 128
 
 smooth = 100
 
@@ -121,7 +121,8 @@ def get_spark_model(model):
     conf = SparkConf().setAppName('Spark_Backend')
     sc = SparkContext(conf=conf)
     adagrad = elephas_optimizers.Adagrad()
-    spark_model = SparkModel(sc, model, optimizer=adagrad, frequency='epoch', mode='asynchronous', num_workers=4, master_loss=dice_coef_loss)
+    spark_model = SparkModel(sc, model, optimizer=adagrad, frequency='epoch',
+                             mode='asynchronous', num_workers=4, master_loss=dice_coef_loss)
 
     return sc, spark_model
 
@@ -179,17 +180,21 @@ def train(train_imgs_path, train_mode):
             from elephas.spark_model import HistoryCallback
 
             class GgoHistoryCallback(HistoryCallback):
+
                 def __init__(self):
                     pass
 
                 def on_receive_history(self, history, metadata):
                     # list all data in history
-                    print("history and metadata keys: {0}, {1}".format(history.history.keys(), metadata.keys()))
-                    print("history and metadata values: {0}, {1}".format(history.history.values(), metadata.values()))
+                    print("history and metadata keys: {0}, {1}".format(
+                        history.history.keys(), metadata.keys()))
+                    print("history and metadata values: {0}, {1}".format(
+                        history.history.values(), metadata.values()))
 
             history_callback = GgoHistoryCallback()
             rdd = to_simple_rdd(sc, train_imgs, train_masks)
-            spark_model.train(rdd, batch_size=32, nb_epoch=nb_epoch, verbose=verbose, validation_split=0.1, history_callback=history_callback)
+            spark_model.train(rdd, batch_size=32, nb_epoch=nb_epoch, verbose=verbose,
+                              validation_split=0.1, history_callback=history_callback)
             model.save('unet.model1.%d.hdf5' % iteration)
             models.save_model(model, 'unet.model2.%d.hdf5' % iteration)
             model.save_weights('unet.weights.%d.hdf5' % iteration)
@@ -235,12 +240,14 @@ def predict(model_file_path, test_imgs_path):
 
 def get_parser():
     parser = argparse.ArgumentParser(description='Train model.')
-    parser.add_argument('--train', dest='train', action='store_true', help='train the model')
+    parser.add_argument('--train', dest='train',
+                        action='store_true', help='train the model')
     parser.add_argument('--train_imgs_path', metavar='train_imgs_path', nargs='?',
                         help='input HD5 file for images and masks in the training set')
     parser.add_argument('--train_mode', metavar='train_mode', nargs='?',
                         help='mode to train your model, can be either spark or standalone')
-    parser.add_argument('--predict', dest='predict', action='store_true', help='predict the model')
+    parser.add_argument('--predict', dest='predict',
+                        action='store_true', help='predict the model')
     parser.add_argument('--test_imgs_path', metavar='test_imgs_path', nargs='?',
                         help='input HD5 file for images and masks in the test set')
     parser.add_argument('--model_file_path', metavar='model_file_path', nargs='?',
@@ -258,14 +265,17 @@ if __name__ == '__main__':
         parser.error('Required to set either --train or --predict option')
 
     if args.train and (args.train_imgs_path is None or args.train_mode is None):
-        parser.error('arguments --train_imgs_path and --train_mode are required when --train is specified')
+        parser.error(
+            'arguments --train_imgs_path and --train_mode are required when --train is specified')
 
     if args.predict and (args.test_imgs_path is None or args.model_file_path is None):
-        parser.error('arguments --test_imgs_path and --model_file_path are required when --predict is specified')
+        parser.error(
+            'arguments --test_imgs_path and --model_file_path are required when --predict is specified')
 
     if args.train:
         print("train images path %s" % args.train_imgs_path)
         train(train_imgs_path=args.train_imgs_path, train_mode=args.train_mode)
 
     if args.predict:
-        predict(model_file_path=args.model_file_path, test_imgs_path=args.test_imgs_path)
+        predict(model_file_path=args.model_file_path,
+                test_imgs_path=args.test_imgs_path)
