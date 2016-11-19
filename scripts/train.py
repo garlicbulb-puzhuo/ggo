@@ -269,6 +269,9 @@ if __name__ == '__main__':
     if not args.train and not args.predict:
         parser.error('Required to set either --train or --predict option')
 
+    if not args.config_file
+        parser.error('Required to set --config_file')
+
     if args.train and (args.train_imgs_path is None or args.train_mode is None):
         parser.error(
             'arguments --train_imgs_path and --train_mode are required when --train is specified')
