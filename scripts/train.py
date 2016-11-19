@@ -177,7 +177,7 @@ def train(train_imgs_path, train_mode, train_config):
     nb_epoch = int(train_config.get('nb_epoch'))
     train_batch_size = int(train_config.get('train_batch_size'))
     val_batch_size = int(train_config.get('val_batch_size'))
-    data_gen_iteration=int(train_config.get('data_gen_iteration'))
+    data_gen_iteration = int(train_config.get('data_gen_iteration'))
     verbose = 1
     iteration = 1
 
