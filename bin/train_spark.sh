@@ -62,9 +62,9 @@ exec_env="export SPARK_CONF_DIR=${SPARK_CONF_DIR}"
 
 su -s /bin/bash ${SVC_USER} -c "$exec_env & spark-submit --num-executors 10 \
     --master yarn-client --driver-memory 10G --executor-memory 5G \
-    --principal ${KERBEROS_PRINCIPAL} --keytab ${KERBEROS_KEYTAB} --proxy-user ${USER} \
+    --principal ${KERBEROS_PRINCIPAL} --keytab ${KERBEROS_KEYTAB} --proxy-user ${PROXY_USER} \
     --conf spark.akka.frameSize=1024 \
-    --conf spark.executorEnv.HOME=${HOME} \
+    --conf spark.executorEnv.HOME=${SPARK_ENV_HOME} \
     ${MAIN_TRAIN_SCRIPT} \
     --train_imgs_path ${training_file} --train --train_mode spark --config_file ${BASEDIR}/config/config.ini
     > ${working_dir}/train.log 2>&1"
@@ -76,6 +76,6 @@ echo "Start pulling results"
 regex="application_[0-9]+_[0-9]+"
 application_id=$(grep -Ei " $regex " ${working_dir}/train.log | head -1 | grep -oEi $regex)
 
-su -s /bin/bash ${SVC_USER} -c "hdfs dfs -cat /var/log/hadoop-yarn/apps/${USER}/logs/${application_id}/* \
+su -s /bin/bash ${SVC_USER} -c "hdfs dfs -cat /var/log/hadoop-yarn/apps/${PROXY_USER}/logs/${application_id}/* \
     | ${BASEDIR}/application_log.sh > ${working_dir}/results.csv"
 
