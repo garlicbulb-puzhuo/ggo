@@ -3,6 +3,9 @@
 set -e
 set -u
 
+# current program name
+progname="$(basename "$(test -L "$0" && readlink "$0" || echo "$0")")"
+
 working_dir=
 training_file=
 
