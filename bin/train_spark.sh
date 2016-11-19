@@ -60,7 +60,7 @@ echo "Start training"
 
 exec_env="export SPARK_CONF_DIR=${SPARK_CONF_DIR}"
 
-su -s /bin/bash ${SVC_USER} -c "$exec_env & spark-submit --num-executors 10 \
+SPARK_COMMAND="spark-submit --num-executors 10 \
     --master yarn-client --driver-memory 10G --executor-memory 5G \
     --principal ${KERBEROS_PRINCIPAL} --keytab ${KERBEROS_KEYTAB} --proxy-user ${PROXY_USER} \
     --conf spark.akka.frameSize=1024 \
@@ -68,6 +68,8 @@ su -s /bin/bash ${SVC_USER} -c "$exec_env & spark-submit --num-executors 10 \
     ${MAIN_TRAIN_SCRIPT} \
     --train_imgs_path ${training_file} --train --train_mode spark --config_file ${BASEDIR}/config/config.ini
     > ${working_dir}/train.log 2>&1"
+
+su -s /bin/bash ${SVC_USER} -c "$exec_env && $SPARK_COMMAND"
 
 echo "Training done"
 
