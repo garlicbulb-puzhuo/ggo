@@ -17,7 +17,7 @@ function usage {
     exit 1
 }
 
-while getopts ":t:w:h" opt; do
+while getopts ":w:t:h" opt; do
     case $opt in
         w)
             working_dir=$OPTARG
@@ -40,11 +40,6 @@ while getopts ":t:w:h" opt; do
             ;;
     esac
 done
-
-if [ $# -eq 0 ]; then
-    echo "${progname}: No command line argument provided"
-    usage
-fi
 
 if [ ${working_dir_arg} -eq 0 ]; then
     echo "${progname}: Missing working output directory argument"
