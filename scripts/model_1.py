@@ -3,8 +3,6 @@ from __future__ import print_function
 from keras.models import Model
 from keras.layers import Input, merge, Convolution2D, MaxPooling2D, UpSampling2D
 from keras.optimizers import Adam
-from keras.callbacks import ModelCheckpoint, LearningRateScheduler
-from keras import backend as K
 from train import dice_coef, dice_coef_loss
 
 

@@ -3,13 +3,11 @@ from __future__ import print_function
 from keras.models import Model
 from keras.layers import Input, merge, Convolution2D, MaxPooling2D, UpSampling2D, Dropout
 from keras.optimizers import Adam
-from keras.callbacks import ModelCheckpoint, LearningRateScheduler
-from keras import backend as K
 from train import dice_coef, dice_coef_loss
 from keras.layers.normalization import BatchNormalization
 
 
-def get_unet_BN(input_shape=(1, 128, 128), lr=1e-5, dropout_prob=0.5):
+def get_unet(input_shape=(1, 128, 128), lr=1e-5, dropout_prob=0.5):
     inputs = Input(input_shape)
     conv1 = Convolution2D(32, 3, 3, activation='relu',
                           border_mode='same')(inputs)
