@@ -167,14 +167,14 @@ def train(train_imgs_path, train_mode, train_config):
     print('Fitting model...')
     print('-' * 30)
 
-    nb_epoch = train_config.get('nb_epoch')
-    train_batch_size = train_config.get('train_batch_size')
-    val_batch_size = train_config.get('val_batch_size')
+    nb_epoch = int(train_config.get('nb_epoch'))
+    train_batch_size = int(train_config.get('train_batch_size'))
+    val_batch_size = int(train_config.get('val_batch_size'))
     verbose = 1
     iteration = 1
 
     for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index in \
-            train_val_data_generator(train_imgs_path, train_batch_size=train_batch_size, val_batch_size=val_batch_size, img_rows=img_rows, img_cols=img_cols):
+            train_val_data_generator(file=train_imgs_path, train_batch_size=train_batch_size, val_batch_size=val_batch_size, img_rows=img_rows, img_cols=img_cols):
         print(train_imgs.shape)
 
         if train_mode == 'spark':
