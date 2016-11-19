@@ -62,7 +62,7 @@ exec_env="export SPARK_CONF_DIR=${SPARK_CONF_DIR}"
 
 su -s /bin/bash ${SVC_USER} -c "$exec_env & spark-submit --num-executors 10 \
     --master yarn-client --driver-memory 10G --executor-memory 5G \
-    --principal ${KERBEROS_PRINCIPAL} --keytab ${KERBEROS_KEYAB} --proxy-user ${USER} \
+    --principal ${KERBEROS_PRINCIPAL} --keytab ${KERBEROS_KEYTAB} --proxy-user ${USER} \
     --conf spark.akka.frameSize=1024 \
     --conf spark.executorEnv.HOME=${HOME} \
     ${MAIN_TRAIN_SCRIPT} \
