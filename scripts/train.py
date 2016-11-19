@@ -167,9 +167,9 @@ def train(train_imgs_path, train_mode, train_config):
     print('Fitting model...')
     print('-' * 30)
 
-    nb_epoch = train_config('nb_epoch')
-    train_batch_size = train_config('train_batch_size')
-    val_batch_size = train_config('val_batch_size')
+    nb_epoch = train_config.get('nb_epoch')
+    train_batch_size = train_config.get('train_batch_size')
+    val_batch_size = train_config.get('val_batch_size')
     verbose = 1
     iteration = 1
 
