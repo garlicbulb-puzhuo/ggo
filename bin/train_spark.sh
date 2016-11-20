@@ -71,15 +71,6 @@ SPARK_COMMAND="$exec_env && spark-submit --num-executors 10 \
 
 echo "Spark Command: $SPARK_COMMAND"
 
-su -s /bin/bash ${SVC_USER} -c "${SPARK_COMMAND}"
+eval ${SPARK_COMMAND}
 
 echo "Training done"
-
-echo "Start pulling results"
-
-regex="application_[0-9]+_[0-9]+"
-application_id=$(grep -Ei " $regex " ${working_dir}/train.log | head -1 | grep -oEi $regex)
-
-su -s /bin/bash ${SVC_USER} -c "hdfs dfs -cat /var/log/hadoop-yarn/apps/${PROXY_USER}/logs/${application_id}/* \
-    | ${BASEDIR}/application_log.sh > ${working_dir}/results.csv"
-
