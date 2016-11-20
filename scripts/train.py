@@ -140,8 +140,6 @@ def train_val_split(imgs, masks, index, split_ratio = 0.1):
 
 
 def train(train_imgs_path, train_mode, train_config):
-    from elephas.utils.rdd_utils import to_simple_rdd
-
     print('-' * 30)
     print('Loading and preprocessing train data...')
     print('-' * 30)
@@ -153,12 +151,19 @@ def train(train_imgs_path, train_mode, train_config):
     img_rows = int(train_config.get('img_rows'))
     img_cols = int(train_config.get('img_cols'))
 
+    model_id = int(train_config.get('model_id'))
+    if model_id == 1:
+        from model_1 import get_unet
+
+    if model_id == 2:
+        from model_2 import get_unet
+
     ### import model
-    from model_2 import get_unet_BN
     input_shape = (1, img_rows, img_cols)
 
-    train_output = 'unet123_BN.hdf5'
-    model = get_unet_BN(input_shape)
+    # train_output = 'unet123_BN.hdf5'
+
+    model = get_unet(input_shape)
 
     if train_mode == 'spark':
         sc, spark_model = get_spark_model(model)
@@ -167,17 +172,20 @@ def train(train_imgs_path, train_mode, train_config):
     print('Fitting model...')
     print('-' * 30)
 
-    nb_epoch = train_config('nb_epoch')
-    train_batch_size = train_config('train_batch_size')
-    val_batch_size = train_config('val_batch_size')
+    nb_epoch = int(train_config.get('nb_epoch'))
+    train_batch_size = int(train_config.get('train_batch_size'))
+    val_batch_size = int(train_config.get('val_batch_size'))
+    data_gen_iteration = int(train_config.get('data_gen_iteration'))
     verbose = 1
     iteration = 1
 
     for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index in \
-            train_val_data_generator(train_imgs_path, train_batch_size=train_batch_size, val_batch_size=val_batch_size, img_rows=img_rows, img_cols=img_cols):
+            train_val_data_generator(file=train_imgs_path, train_batch_size=train_batch_size, val_batch_size=val_batch_size, img_rows=img_rows,
+                                     img_cols=img_cols, iter=data_gen_iteration):
         print(train_imgs.shape)
 
         if train_mode == 'spark':
+            from elephas.utils.rdd_utils import to_simple_rdd
             from elephas.spark_model import HistoryCallback
 
             class GgoHistoryCallback(HistoryCallback):
@@ -268,6 +276,9 @@ if __name__ == '__main__':
 
     if not args.train and not args.predict:
         parser.error('Required to set either --train or --predict option')
+
+    if not args.config_file:
+        parser.error('Required to set --config_file')
 
     if args.train and (args.train_imgs_path is None or args.train_mode is None):
         parser.error(
