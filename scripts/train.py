@@ -140,8 +140,6 @@ def train_val_split(imgs, masks, index, split_ratio = 0.1):
 
 
 def train(train_imgs_path, train_mode, train_config):
-    from elephas.utils.rdd_utils import to_simple_rdd
-
     print('-' * 30)
     print('Loading and preprocessing train data...')
     print('-' * 30)
@@ -187,6 +185,7 @@ def train(train_imgs_path, train_mode, train_config):
         print(train_imgs.shape)
 
         if train_mode == 'spark':
+            from elephas.utils.rdd_utils import to_simple_rdd
             from elephas.spark_model import HistoryCallback
 
             class GgoHistoryCallback(HistoryCallback):
