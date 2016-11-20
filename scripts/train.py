@@ -36,74 +36,7 @@ def dice_coef_loss(y_true, y_pred):
     return -dice_coef(y_true, y_pred)
 
 
-def get_unet(img_rows, img_cols):
-    inputs = Input((1, img_rows, img_cols))
-    conv1 = Convolution2D(32, 3, 3, activation='relu',
-                          border_mode='same')(inputs)
-    conv1 = Convolution2D(32, 3, 3, activation='relu',
-                          border_mode='same')(conv1)
-    pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
-
-    conv2 = Convolution2D(64, 3, 3, activation='relu',
-                          border_mode='same')(pool1)
-    conv2 = Convolution2D(64, 3, 3, activation='relu',
-                          border_mode='same')(conv2)
-    pool2 = MaxPooling2D(pool_size=(2, 2))(conv2)
-
-    conv3 = Convolution2D(128, 3, 3, activation='relu',
-                          border_mode='same')(pool2)
-    conv3 = Convolution2D(128, 3, 3, activation='relu',
-                          border_mode='same')(conv3)
-    pool3 = MaxPooling2D(pool_size=(2, 2))(conv3)
-
-    conv4 = Convolution2D(256, 3, 3, activation='relu',
-                          border_mode='same')(pool3)
-    conv4 = Convolution2D(256, 3, 3, activation='relu',
-                          border_mode='same')(conv4)
-    pool4 = MaxPooling2D(pool_size=(2, 2))(conv4)
-
-    conv5 = Convolution2D(512, 3, 3, activation='relu',
-                          border_mode='same')(pool4)
-    conv5 = Convolution2D(512, 3, 3, activation='relu',
-                          border_mode='same')(conv5)
-
-    up6 = merge([UpSampling2D(size=(2, 2))(conv5), conv4],
-                mode='concat', concat_axis=1)
-    conv6 = Convolution2D(256, 3, 3, activation='relu',
-                          border_mode='same')(up6)
-    conv6 = Convolution2D(256, 3, 3, activation='relu',
-                          border_mode='same')(conv6)
-
-    up7 = merge([UpSampling2D(size=(2, 2))(conv6), conv3],
-                mode='concat', concat_axis=1)
-    conv7 = Convolution2D(128, 3, 3, activation='relu',
-                          border_mode='same')(up7)
-    conv7 = Convolution2D(128, 3, 3, activation='relu',
-                          border_mode='same')(conv7)
-
-    up8 = merge([UpSampling2D(size=(2, 2))(conv7), conv2],
-                mode='concat', concat_axis=1)
-    conv8 = Convolution2D(64, 3, 3, activation='relu', border_mode='same')(up8)
-    conv8 = Convolution2D(64, 3, 3, activation='relu',
-                          border_mode='same')(conv8)
-
-    up9 = merge([UpSampling2D(size=(2, 2))(conv8), conv1],
-                mode='concat', concat_axis=1)
-    conv9 = Convolution2D(32, 3, 3, activation='relu', border_mode='same')(up9)
-    conv9 = Convolution2D(32, 3, 3, activation='relu',
-                          border_mode='same')(conv9)
-
-    conv10 = Convolution2D(1, 1, 1, activation='sigmoid')(conv9)
-
-    model = Model(input=inputs, output=conv10)
-
-    model.compile(optimizer=Adam(lr=1e-5),
-                  loss=dice_coef_loss, metrics=[dice_coef])
-    print(model.layers)
-    return model
-
-
-def get_spark_model(model):
+def get_spark_model(model, master_server_port):
     from elephas.spark_model import SparkModel
     from elephas import optimizers as elephas_optimizers
     from pyspark import SparkContext, SparkConf
@@ -112,7 +45,7 @@ def get_spark_model(model):
     sc = SparkContext(conf=conf)
     adagrad = elephas_optimizers.Adagrad()
     spark_model = SparkModel(sc, model, optimizer=adagrad, frequency='epoch',
-                             mode='asynchronous', num_workers=4, master_loss=dice_coef_loss)
+                             mode='asynchronous', num_workers=4, master_loss=dice_coef_loss, master_server_port=master_server_port)
 
     return sc, spark_model
 
@@ -166,7 +99,8 @@ def train(train_imgs_path, train_mode, train_config):
     model = get_unet(input_shape)
 
     if train_mode == 'spark':
-        sc, spark_model = get_spark_model(model)
+        master_server_port = int(train_config.get('master_server_port', 5000))
+        sc, spark_model = get_spark_model(model, master_server_port)
 
     print('-' * 30)
     print('Fitting model...')
@@ -237,6 +171,14 @@ def train(train_imgs_path, train_mode, train_config):
 def predict(model_file_path, test_imgs_path, config):
     img_rows = int(config.get('img_rows'))
     img_cols = int(config.get('img_cols'))
+
+    model_id = int(config.get('model_id'))
+    if model_id == 1:
+        from model_1 import get_unet
+
+    if model_id == 2:
+        from model_2 import get_unet
+
     model = get_unet(img_rows=img_rows, img_cols=img_cols)
     model.load_weights(model_file_path)
     print(model.layers)
