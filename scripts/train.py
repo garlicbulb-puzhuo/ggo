@@ -3,9 +3,6 @@
 from __future__ import print_function
 
 from keras import models
-from keras.models import Model
-from keras.layers import Input, merge, Convolution2D, MaxPooling2D, UpSampling2D
-from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint
 from keras import backend as K
 
@@ -100,7 +97,8 @@ def train(train_imgs_path, train_mode, train_config):
 
     if train_mode == 'spark':
         master_server_port = int(train_config.get('master_server_port', 5000))
-        sc, spark_model = get_spark_model(model, master_server_port)
+        print("spark master server port : {0}".format(master_server_port))
+        sc, spark_model = get_spark_model(model=model, master_server_port=master_server_port)
 
     print('-' * 30)
     print('Fitting model...')
