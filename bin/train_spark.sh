@@ -19,7 +19,7 @@ function usage {
     exit 1
 }
 
-while getopts ":w:t:h" opt; do
+while getopts ":w:t:c:h" opt; do
     case $opt in
         w)
             working_dir=$OPTARG
