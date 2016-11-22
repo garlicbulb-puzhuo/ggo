@@ -3,9 +3,14 @@ from __future__ import print_function
 from keras.models import Model
 from keras.layers import Input, merge, Convolution2D, MaxPooling2D, UpSampling2D, Dropout
 from keras.optimizers import Adam
-from train import dice_coef, dice_coef_loss
 from keras.layers.normalization import BatchNormalization
+from loss import dice_coef_loss
 
+def custom_loss(y_true, y_pred): 
+  return dice_coef_loss(y_true = y_true, y_pred = y_pred, weights =100)
+
+def custom_metric(y_true, y_pred): 
+  return -custom_loss(y_true, y_pred)
 
 def get_unet(input_shape=(1, 128, 128), lr=1e-5, dropout_prob=0.5):
     inputs = Input(input_shape)
@@ -87,5 +92,5 @@ def get_unet(input_shape=(1, 128, 128), lr=1e-5, dropout_prob=0.5):
     model = Model(input=inputs, output=conv10)
 
     model.compile(optimizer=Adam(lr=lr),
-                  loss=dice_coef_loss, metrics=[dice_coef])
+                  loss=custom_loss, metrics=[custom_metric])
     return model
