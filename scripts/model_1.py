@@ -3,13 +3,7 @@ from __future__ import print_function
 from keras.models import Model
 from keras.layers import Input, merge, Convolution2D, MaxPooling2D, UpSampling2D
 from keras.optimizers import Adam
-from loss import dice_coef_loss
-
-def custom_loss(y_true, y_pred): 
-  return dice_coef_loss(y_true = y_true, y_pred = y_pred, weights =100)
-
-def custom_metric(y_true, y_pred): 
-  return -custom_loss(y_true, y_pred)
+from loss import custom_loss, custom_metric
 
 def get_unet(input_shape=(1, 128, 128), lr=1e-5):
     inputs = Input(input_shape)

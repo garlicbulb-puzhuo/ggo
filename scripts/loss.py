@@ -28,3 +28,9 @@ def dice_coef_loss(y_true, y_pred, version = "prob", smooth= 1e-15, threshold=0.
 		return -dice_coef_prob(y_true, y_pred, smooth=smooth, weights = weights)
 	if version == "binary": 
 		return -dice_coef_binary(y_true, y_pred, smooth=smooth, weights = weights, threshold=threshold)
+
+def custom_loss(y_true, y_pred): 
+  return dice_coef_loss(y_true = y_true, y_pred = y_pred, weights =100)
+
+def custom_metric(y_true, y_pred): 
+  return -custom_loss(y_true, y_pred)
