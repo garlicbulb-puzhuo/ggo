@@ -3,11 +3,7 @@
 from __future__ import print_function
 
 from keras import models
-from keras.models import Model
-from keras.layers import Input, merge, Convolution2D, MaxPooling2D, UpSampling2D
-from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint
-from keras import backend as K
 
 import ConfigParser
 import argparse
@@ -23,7 +19,8 @@ logger.setLevel(logging.INFO)
 logging_handler_out = logging.StreamHandler(sys.stdout)
 logger.addHandler(logging_handler_out)
 
-def get_spark_model(model):
+
+def get_spark_model(model, master_server_port):
     from elephas.spark_model import SparkModel
     from elephas import optimizers as elephas_optimizers
     from pyspark import SparkContext, SparkConf
@@ -32,7 +29,7 @@ def get_spark_model(model):
     sc = SparkContext(conf=conf)
     adagrad = elephas_optimizers.Adagrad()
     spark_model = SparkModel(sc, model, optimizer=adagrad, frequency='epoch',
-                             mode='asynchronous', num_workers=4, master_loss=dice_coef_loss)
+                             mode='asynchronous', num_workers=4, master_loss=dice_coef_loss, master_server_port=master_server_port)
 
     return sc, spark_model
 
@@ -89,7 +86,9 @@ def train(train_imgs_path, train_mode, train_config):
     model = get_unet(input_shape)
 
     if train_mode == 'spark':
-        sc, spark_model = get_spark_model(model)
+        master_server_port = int(train_config.get('master_server_port', 5000))
+        print("spark master server port : {0}".format(master_server_port))
+        sc, spark_model = get_spark_model(model=model, master_server_port=master_server_port)
 
     print('-' * 30)
     print('Fitting model...')
@@ -160,6 +159,14 @@ def train(train_imgs_path, train_mode, train_config):
 def predict(model_file_path, test_imgs_path, config):
     img_rows = int(config.get('img_rows'))
     img_cols = int(config.get('img_cols'))
+
+    model_id = int(config.get('model_id'))
+    if model_id == 1:
+        from model_1 import get_unet
+
+    if model_id == 2:
+        from model_2 import get_unet
+
     model = get_unet(img_rows=img_rows, img_cols=img_cols)
     model.load_weights(model_file_path)
     print(model.layers)
