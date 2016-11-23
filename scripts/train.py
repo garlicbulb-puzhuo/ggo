@@ -15,7 +15,6 @@ import sys
 import logging
 
 from data_utils import train_val_data_generator, test_data_generator
-from loss import dice_coef_loss
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -78,6 +77,9 @@ def train(train_imgs_path, train_mode, train_config):
 
     if model_id == 2:
         from model_2 import get_unet
+
+    if model_id == 3:
+        from model_3 import get_unet
 
     ### import model
     input_shape = (1, img_rows, img_cols)
