@@ -88,7 +88,8 @@ def train(train_imgs_path, train_mode, train_config):
     if train_mode == 'spark':
         master_server_port = int(train_config.get('master_server_port', 5000))
         print("spark master server port : {0}".format(master_server_port))
-        sc, spark_model = get_spark_model(model=model, master_server_port=master_server_port)
+        sc, spark_model = get_spark_model(
+            model=model, master_server_port=master_server_port)
 
     print('-' * 30)
     print('Fitting model...')
