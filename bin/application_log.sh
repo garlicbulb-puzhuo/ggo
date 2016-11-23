@@ -49,6 +49,7 @@ hdfs dfs -cat /var/log/hadoop-yarn/apps/${USER}/logs/${application_id}/* \
     | ${BASEDIR}/bin/application_log.sh \
     | grep "history and metadata values" \
     | awk -F: '{print $2}' \
+    | sed -e 's/[[]//g' -e 's/[]]//g' \
     >${working_dir}/results.csv
 
 echo "Done pulling results"

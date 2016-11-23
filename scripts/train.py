@@ -4,6 +4,8 @@ from __future__ import print_function
 
 from keras import models
 from keras.callbacks import ModelCheckpoint
+from keras.callbacks import EarlyStopping
+from keras.callbacks import Callback
 
 import ConfigParser
 import argparse
@@ -110,9 +112,24 @@ def train(train_imgs_path, train_mode, train_config):
         if train_mode == 'spark':
             from elephas.utils.rdd_utils import to_simple_rdd
             from elephas.spark_model import HistoryCallback
+            import os
+            import socket
+
+            class PrintHistoryCallback(Callback):
+                def on_epoch_end(self, epoch, logs={}):
+                    keys = logs.keys()
+                    values = logs.values()
+                    keys.append('hostname')
+                    keys.append('pid')
+                    keys.append('epoch')
+                    values.append(socket.gethostname())
+                    values.append(os.getpid())
+                    values.append(epoch)
+
+                    print("history and metadata keys: {0}".format(keys))
+                    print("history and metadata values: {0}, {1}".format(values))
 
             class GgoHistoryCallback(HistoryCallback):
-
                 def __init__(self):
                     pass
 
@@ -124,17 +141,20 @@ def train(train_imgs_path, train_mode, train_config):
                         history.history.values(), metadata.values()))
 
             history_callback = GgoHistoryCallback()
+            print_history = PrintHistoryCallback()
+            early_stop = EarlyStopping(monitor='val_loss', patience=2, verbose=0)
             rdd = to_simple_rdd(sc, train_imgs, train_masks)
             spark_model.train(rdd, batch_size=32, nb_epoch=nb_epoch, verbose=verbose,
-                              validation_split=0.1, history_callback=history_callback)
-            model.save('unet.model1.%d.hdf5' % iteration)
-            models.save_model(model, 'unet.model2.%d.hdf5' % iteration)
-            model.save_weights('unet.weights.%d.hdf5' % iteration)
+                              validation_split=0.1, callbacks=[print_history, early_stop])
+
+            models.save_model(model, 'unet.model%d.model.iteration%d.hdf5' % (model_id, iteration))
+            model.save_weights('unet.model%d.weights.iteration%d.hdf5' % (model_id, iteration))
         else:
             model_checkpoint = ModelCheckpoint(
                 'unet.hdf5', monitor='loss', save_best_only=True)
+            early_stop = EarlyStopping(monitor='val_loss', patience=2, verbose=0)
             model.fit(train_imgs, train_masks, batch_size=32, nb_epoch=nb_epoch, validation_data=(val_imgs, val_masks), verbose=verbose, shuffle=True,
-                      callbacks=[model_checkpoint])
+                      callbacks=[model_checkpoint, early_stop])
 
         iteration += 1
 
