@@ -12,6 +12,8 @@ import argparse
 import sys
 import logging
 
+from loss import dice_coef_loss
+
 from data_utils import train_val_data_generator, test_data_generator
 
 logger = logging.getLogger()
