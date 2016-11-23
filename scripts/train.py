@@ -4,7 +4,6 @@ from __future__ import print_function
 
 from keras import models
 from keras.callbacks import ModelCheckpoint
-from keras import backend as K
 
 import ConfigParser
 import argparse
@@ -13,24 +12,12 @@ import logging
 
 from data_utils import train_val_data_generator, test_data_generator
 
-
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # match images and masks
 logging_handler_out = logging.StreamHandler(sys.stdout)
 logger.addHandler(logging_handler_out)
-
-
-def dice_coef(y_true, y_pred, smooth=100):
-    y_true_f = K.flatten(y_true)
-    y_pred_f = K.flatten(y_pred)
-    intersection = K.sum(y_true_f * y_pred_f)
-    return (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
-
-
-def dice_coef_loss(y_true, y_pred):
-    return -dice_coef(y_true, y_pred)
 
 
 def get_spark_model(model, master_server_port):
@@ -88,6 +75,9 @@ def train(train_imgs_path, train_mode, train_config):
     if model_id == 2:
         from model_2 import get_unet
 
+    if model_id == 3:
+        from model_3 import get_unet
+
     ### import model
     input_shape = (1, img_rows, img_cols)
 
@@ -98,7 +88,8 @@ def train(train_imgs_path, train_mode, train_config):
     if train_mode == 'spark':
         master_server_port = int(train_config.get('master_server_port', 5000))
         print("spark master server port : {0}".format(master_server_port))
-        sc, spark_model = get_spark_model(model=model, master_server_port=master_server_port)
+        sc, spark_model = get_spark_model(
+            model=model, master_server_port=master_server_port)
 
     print('-' * 30)
     print('Fitting model...')

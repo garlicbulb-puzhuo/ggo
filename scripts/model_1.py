@@ -3,7 +3,7 @@ from __future__ import print_function
 from keras.models import Model
 from keras.layers import Input, merge, Convolution2D, MaxPooling2D, UpSampling2D
 from keras.optimizers import Adam
-from train import dice_coef, dice_coef_loss
+from loss import custom_loss, custom_metric
 
 
 def get_unet(input_shape=(1, 128, 128), lr=1e-5):
@@ -68,5 +68,5 @@ def get_unet(input_shape=(1, 128, 128), lr=1e-5):
     model = Model(input=inputs, output=conv10)
 
     model.compile(optimizer=Adam(lr=lr),
-                  loss=dice_coef_loss, metrics=[dice_coef])
+                  loss=custom_loss, metrics=[custom_metric])
     return model
