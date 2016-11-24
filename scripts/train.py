@@ -129,7 +129,7 @@ def train(train_imgs_path, train_mode, train_config):
                     values.append(epoch)
 
                     print("history and metadata keys: {0}".format(keys))
-                    print("history and metadata values: {0}, {1}".format(values))
+                    print("history and metadata values: {0}".format(values))
 
             class GgoHistoryCallback(HistoryCallback):
                 def __init__(self):
