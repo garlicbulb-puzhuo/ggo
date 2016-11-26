@@ -82,11 +82,7 @@ def train(train_imgs_path, train_mode, train_config):
     if model_id == 3:
         from model_3 import get_unet
 
-    ### import model
     input_shape = (1, img_rows, img_cols)
-
-    # train_output = 'unet123_BN.hdf5'
-
     model = get_unet(input_shape)
 
     if train_mode == 'spark':
@@ -103,6 +99,7 @@ def train(train_imgs_path, train_mode, train_config):
     train_batch_size = int(train_config.get('train_batch_size'))
     val_batch_size = int(train_config.get('val_batch_size'))
     data_gen_iteration = int(train_config.get('data_gen_iteration'))
+    batch_size = int(train_config.get('batch_size'))
     verbose = 1
     iteration = 1
 
@@ -146,7 +143,7 @@ def train(train_imgs_path, train_mode, train_config):
             print_history = PrintHistoryCallback()
             early_stop = EarlyStopping(monitor='val_loss', patience=2, verbose=0)
             rdd = to_simple_rdd(sc, train_imgs, train_masks)
-            spark_model.train(rdd, batch_size=32, nb_epoch=nb_epoch, verbose=verbose,
+            spark_model.train(rdd, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose,
                               validation_split=0.1, callbacks=[print_history, early_stop])
 
             models.save_model(model, 'unet.model%d.model.iteration%d.hdf5' % (model_id, iteration))
@@ -155,7 +152,7 @@ def train(train_imgs_path, train_mode, train_config):
             model_checkpoint = ModelCheckpoint(
                 'unet.hdf5', monitor='loss', save_best_only=True)
             early_stop = EarlyStopping(monitor='val_loss', patience=2, verbose=0)
-            model.fit(train_imgs, train_masks, batch_size=32, nb_epoch=nb_epoch, validation_data=(val_imgs, val_masks), verbose=verbose, shuffle=True,
+            model.fit(train_imgs, train_masks, batch_size=batch_size, nb_epoch=nb_epoch, validation_data=(val_imgs, val_masks), verbose=verbose, shuffle=True,
                       callbacks=[model_checkpoint, early_stop])
 
         iteration += 1
