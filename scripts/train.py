@@ -24,7 +24,7 @@ logging_handler_out = logging.StreamHandler(sys.stdout)
 logger.addHandler(logging_handler_out)
 
 
-def get_spark_model(model, master_server_port):
+def get_spark_model(model, master_server_port, spark_model_callbacks=[]):
     from elephas.spark_model import SparkModel
     from elephas import optimizers as elephas_optimizers
     from pyspark import SparkContext, SparkConf
@@ -32,8 +32,10 @@ def get_spark_model(model, master_server_port):
     conf = SparkConf().setAppName('Spark_Backend')
     sc = SparkContext(conf=conf)
     adagrad = elephas_optimizers.Adagrad()
+
     spark_model = SparkModel(sc, model, optimizer=adagrad, frequency='epoch',
-                             mode='asynchronous', num_workers=4, master_loss=dice_coef_loss, master_server_port=master_server_port)
+                             mode='asynchronous', num_workers=4, master_loss=dice_coef_loss, master_server_port=master_server_port,
+                             model_callbacks=spark_model_callbacks)
 
     return sc, spark_model
 
@@ -86,10 +88,36 @@ def train(train_imgs_path, train_mode, train_config):
     model = get_unet(input_shape)
 
     if train_mode == 'spark':
+        from elephas.spark_model import ModelCallback
+
         master_server_port = int(train_config.get('master_server_port', 5000))
+        worker_epoch_updates = int(
+            train_config.get('worker_epoch_updates'), 50)
         print("spark master server port : {0}".format(master_server_port))
+
+        class SparkModelCheckPoint(ModelCallback):
+
+            def __init__(self):
+                self.worker_epoch_updates = worker_epoch_updates
+                self.current_worker_epoch = 0
+
+            def on_update_parameters(self, parent_spark_model):
+                self.current_worker_epoch += 1
+                logger.info("get update parameters from worker: %d" %
+                            self.current_worker_epoch)
+                if self.current_worker_epoch % self.worker_epoch_updates == 0:
+                    # update parent spark model's weights
+                    parent_spark_model.update_weights()
+
+                    # write parent spark model's weights
+                    logger.info(
+                        "write intermediate weights for model %d" % model_id)
+                    parent_spark_model.master_network.save_weights(
+                        'unet.model%d.weights.intermediate.hdf5' % model_id)
+
+        spark_model_callback = SparkModelCheckPoint()
         sc, spark_model = get_spark_model(
-            model=model, master_server_port=master_server_port)
+            model=model, master_server_port=master_server_port, spark_model_callback=[spark_model_callback])
 
     print('-' * 30)
     print('Fitting model...')
@@ -100,6 +128,8 @@ def train(train_imgs_path, train_mode, train_config):
     val_batch_size = int(train_config.get('val_batch_size'))
     data_gen_iteration = int(train_config.get('data_gen_iteration'))
     batch_size = int(train_config.get('batch_size'))
+    early_stop_min_delta = float(
+        train_config.get('early_stop_min_delta'), 0.01)
     verbose = 1
     iteration = 1
 
@@ -115,6 +145,7 @@ def train(train_imgs_path, train_mode, train_config):
             import socket
 
             class PrintHistoryCallback(Callback):
+
                 def on_epoch_end(self, epoch, logs={}):
                     keys = logs.keys()
                     values = logs.values()
@@ -129,6 +160,7 @@ def train(train_imgs_path, train_mode, train_config):
                     print("history and metadata values: {0}".format(values))
 
             class GgoHistoryCallback(HistoryCallback):
+
                 def __init__(self):
                     pass
 
@@ -139,19 +171,23 @@ def train(train_imgs_path, train_mode, train_config):
                     print("history and metadata values: {0}, {1}".format(
                         history.history.values(), metadata.values()))
 
-            history_callback = GgoHistoryCallback()
+            # history_callback = GgoHistoryCallback()
             print_history = PrintHistoryCallback()
-            early_stop = EarlyStopping(monitor='val_loss', patience=2, verbose=0)
+            early_stop = EarlyStopping(
+                monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
             rdd = to_simple_rdd(sc, train_imgs, train_masks)
             spark_model.train(rdd, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose,
                               validation_split=0.1, callbacks=[print_history, early_stop])
 
-            models.save_model(model, 'unet.model%d.model.iteration%d.hdf5' % (model_id, iteration))
-            model.save_weights('unet.model%d.weights.iteration%d.hdf5' % (model_id, iteration))
+            models.save_model(
+                model, 'unet.model%d.model.iteration%d.hdf5' % (model_id, iteration))
+            model.save_weights(
+                'unet.model%d.weights.iteration%d.hdf5' % (model_id, iteration))
         else:
             model_checkpoint = ModelCheckpoint(
                 'unet.hdf5', monitor='loss', save_best_only=True)
-            early_stop = EarlyStopping(monitor='val_loss', patience=2, verbose=0)
+            early_stop = EarlyStopping(
+                monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
             model.fit(train_imgs, train_masks, batch_size=batch_size, nb_epoch=nb_epoch, validation_data=(val_imgs, val_masks), verbose=verbose, shuffle=True,
                       callbacks=[model_checkpoint, early_stop])
 
