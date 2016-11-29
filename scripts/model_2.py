@@ -88,4 +88,4 @@ def get_unet(input_shape=(1, 128, 128), lr=1e-5, dropout_prob=0.5):
 
     model.compile(optimizer=Adam(lr=lr),
                   loss=custom_loss, metrics=[custom_metric])
-    return model
+    return model, 'UNET'

@@ -85,7 +85,7 @@ def train(train_imgs_path, train_mode, train_config):
         from model_3 import get_unet
 
     input_shape = (1, img_rows, img_cols)
-    model = get_unet(input_shape)
+    model, model_name = get_unet(input_shape)
 
     if train_mode == 'spark':
         from elephas.spark_model import ModelCallback
@@ -96,7 +96,7 @@ def train(train_imgs_path, train_mode, train_config):
         print("spark master server port : {0}".format(master_server_port))
 
         class SparkModelCheckPoint(ModelCallback):
-
+            
             def __init__(self):
                 self.worker_epoch_updates = worker_epoch_updates
                 self.current_worker_epoch = 0
@@ -111,9 +111,9 @@ def train(train_imgs_path, train_mode, train_config):
 
                     # write parent spark model's weights
                     logger.info(
-                        "write intermediate weights for model %d" % model_id)
+                        "write intermediate weights for model %s %d" % (model_name, model_id))
                     parent_spark_model.master_network.save_weights(
-                        'unet.model%d.weights.intermediate.hdf5' % model_id)
+                        '%s.model%d.weights.intermediate.hdf5' % (model_name, model_id))
 
         spark_model_callback = SparkModelCheckPoint()
         sc, spark_model = get_spark_model(
@@ -156,6 +156,7 @@ def train(train_imgs_path, train_mode, train_config):
                     values.append(os.getpid())
                     values.append(epoch)
 
+                    print()
                     print("history and metadata keys: {0}".format(keys))
                     print("history and metadata values: {0}".format(values))
 
@@ -180,12 +181,12 @@ def train(train_imgs_path, train_mode, train_config):
                               validation_split=0.1, callbacks=[print_history, early_stop])
 
             models.save_model(
-                model, 'unet.model%d.model.iteration%d.hdf5' % (model_id, iteration))
+                model, '%s.model%d.model.batch%d.iteration%d.hdf5' % (model_name, model_id, train_batch_size, iteration))
             model.save_weights(
-                'unet.model%d.weights.iteration%d.hdf5' % (model_id, iteration))
+                '%s.model%d.weights.batch%d.iteration%d.hdf5' % (model_name, model_id, train_batch_size, iteration))
         else:
             model_checkpoint = ModelCheckpoint(
-                'unet.hdf5', monitor='loss', save_best_only=True)
+                '%s.hdf5' % model_name, monitor='loss', save_best_only=True)
             early_stop = EarlyStopping(
                 monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
             model.fit(train_imgs, train_masks, batch_size=batch_size, nb_epoch=nb_epoch, validation_data=(val_imgs, val_masks), verbose=verbose, shuffle=True,
