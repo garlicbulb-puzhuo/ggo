@@ -107,7 +107,6 @@ def create_data(src_dirs, des_file, original_size, normalization=True, reduced_s
     else:
         img_rows = int(original_size[0])
         img_cols = int(original_size[1])
-    #des_file = os.path.join(des_dir, "train_data.hdf5")
     f = h5py.File(des_file, "w")
     for img_dir in src_dirs:
         imgs = []
