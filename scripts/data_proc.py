@@ -97,7 +97,7 @@ def get_img_mask_dict(img_dir, mask_dir):
 # images for each ggo image.
 
 
-def create_data(src_dirs, des_dir, original_size, normalization=True, reduced_size=None, ggo_aug=1, crop=False, cropped_size=None):
+def create_data(src_dirs, des_file, original_size, normalization=True, reduced_size=None, ggo_aug= 50, crop=False, cropped_size=None, label_smoothing = 1e-4):
     if crop and cropped_size:
         img_rows = int(cropped_size[0])
         img_cols = int(cropped_size[1])
@@ -107,7 +107,6 @@ def create_data(src_dirs, des_dir, original_size, normalization=True, reduced_si
     else:
         img_rows = int(original_size[0])
         img_cols = int(original_size[1])
-    des_file = os.path.join(des_dir, "train_data.hdf5")
     f = h5py.File(des_file, "w")
     for img_dir in src_dirs:
         imgs = []
@@ -145,15 +144,17 @@ def create_data(src_dirs, des_dir, original_size, normalization=True, reduced_si
                                 mask, (img_cols, img_rows), interpolation=cv2.INTER_CUBIC)
                         has_ggo = True
                     else:
-                        mask = np.full((img_rows, img_cols),
-                                       255, dtype=np.uint8)
-                        # mask = np.array([mask])
+                        mask = np.full((img_rows, img_cols), 255, dtype=np.uint8) 
+                        if label_smoothing != None: 
+                            index = np.random.choice([False,True],(img_rows, img_cols),replace=True, p=[1-label_smoothing, label_smoothing])
+                            mask[index] = 0
                     counter += 1
                     index = np.array(
                         [p, str(counter), str(has_ggo), str(body_part)])
                     imgs.append([img_pixel])
                     masks.append([mask])
                     indices.append(index)
+                    
                     if ggo_aug > 1 and has_ggo:
                         for i in range(ggo_aug):
                             img_tf, mask_tf = transform(img_pixel, mask)
@@ -163,7 +164,7 @@ def create_data(src_dirs, des_dir, original_size, normalization=True, reduced_si
                             imgs.append([img_tf])
                             masks.append([mask_tf])
                             indices.append(index)
-                    if counter % 100 == 0:
+                    if counter % 1000 == 0:
                         print 'Done: {0} images'.format(counter)
 
         if normalization:
@@ -427,3 +428,5 @@ if __name__ == '__main__':
         args.input_dirs, args.output_dir, original_size=[
             img_rows, img_cols], normalization=True, reduced_size=reduced_size, ggo_aug=ggo_aug, crop=False,
         cropped_size=[cropped_img_rows, cropped_img_cols])
+
+
