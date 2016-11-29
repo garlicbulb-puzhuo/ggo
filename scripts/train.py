@@ -96,7 +96,7 @@ def train(train_imgs_path, train_mode, train_config):
         print("spark master server port : {0}".format(master_server_port))
 
         class SparkModelCheckPoint(ModelCallback):
-            
+
             def __init__(self):
                 self.worker_epoch_updates = worker_epoch_updates
                 self.current_worker_epoch = 0
@@ -129,7 +129,7 @@ def train(train_imgs_path, train_mode, train_config):
     data_gen_iteration = int(train_config.get('data_gen_iteration'))
     batch_size = int(train_config.get('batch_size'))
     early_stop_min_delta = float(
-        train_config.get('early_stop_min_delta'), 0.01)
+        train_config.get('early_stop_min_delta', 0.01))
     verbose = 1
     iteration = 1
 
