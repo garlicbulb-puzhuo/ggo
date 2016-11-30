@@ -9,7 +9,7 @@ hyperas==0.2
 hyperopt==0.0.2
 itsdangerous==0.24
 Jinja2==2.8
-Keras==1.1.0
+Keras==1.1.2
 MarkupSafe==0.23
 matplotlib==1.5.3
 mock==2.0.0

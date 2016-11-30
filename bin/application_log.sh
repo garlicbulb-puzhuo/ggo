@@ -7,6 +7,7 @@ set -u
 progname="$(basename "$(test -L "$0" && readlink "$0" || echo "$0")")"
 
 working_dir=
+working_dir_arg=0
 
 function usage {
     echo "usage: ${progname} -w directory [-h]"
@@ -44,11 +45,12 @@ echo "Start pulling results"
 
 regex="application_[0-9]+_[0-9]+"
 application_id=$(grep -Ei " $regex " ${working_dir}/train.log | head -1 | grep -oEi $regex)
+echo "Found application ${application_id}"
 
 hdfs dfs -cat /var/log/hadoop-yarn/apps/${USER}/logs/${application_id}/* \
-    | ${BASEDIR}/bin/application_log.sh \
-    | grep "history and metadata values" \
+    | grep -a "history and metadata values" \
     | awk -F: '{print $2}' \
+    | sed -e 's/[[]//g' -e 's/[]]//g' \
     >${working_dir}/results.csv
 
 echo "Done pulling results"

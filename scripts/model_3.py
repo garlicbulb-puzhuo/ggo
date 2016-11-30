@@ -2,17 +2,15 @@
 # Reference:
 - [Very Deep Convolutional Networks for Large-Scale Image Recognition](https://arxiv.org/abs/1409.1556)
 '''
-from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import print_function
 
-import warnings
-
-from keras.models import Model
-from keras.layers import Flatten, Dense, Input
 from keras.layers import Convolution2D, MaxPooling2D, UpSampling2D, Dropout
+from keras.layers import Input
 from keras.layers.normalization import BatchNormalization
-from keras import backend as K
+from keras.models import Model
 from keras.optimizers import Adam
+
 from loss import custom_loss, custom_metric
 
 
@@ -107,4 +105,4 @@ def get_unet(input_shape=(1, 128, 128), lr=1e-5, dropout_prob=0.5):
 
     model.compile(optimizer=Adam(lr=lr), loss=custom_loss,
                   metrics=[custom_metric])
-    return model
+    return model, 'VGG19'

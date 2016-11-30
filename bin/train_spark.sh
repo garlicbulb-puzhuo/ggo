@@ -58,6 +58,7 @@ fi
 
 BASEDIR=$(dirname $0)/..
 MAIN_TRAIN_SCRIPT=${BASEDIR}/scripts/train.py
+DEPENDENT_PY_FILES=${BASEDIR}/scripts/loss.py
 CONFIGURATION_FILE=${config_file:=${BASEDIR}/config/config.ini}
 
 cd ${working_dir}
@@ -72,6 +73,7 @@ SPARK_COMMAND="$exec_env && spark-submit --num-executors 10 \
     --conf spark.akka.frameSize=1024 \
     --conf spark.network.timeout=600s \
     --conf spark.executorEnv.HOME=${SPARK_ENV_HOME} \
+    --py-files $DEPENDENT_PY_FILES \
     ${MAIN_TRAIN_SCRIPT} \
     --train_imgs_path ${training_file} --train --train_mode spark --config_file ${CONFIGURATION_FILE} \
     >${working_dir}/train.log 2>&1"
