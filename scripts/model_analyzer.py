@@ -26,6 +26,8 @@ for imgs, masks, index in test_data_generator(test_file, img_rows, img_cols, ite
 im = np.array([imgs[600]])
 
 # img: a test image; model_hdf5: train output
+
+
 def plot_inner_layers_output(img, model, model_hdf5):
     layers = print_structure(model_hdf5)
     model.load_weights(model_hdf5)
@@ -44,30 +46,33 @@ def plot_inner_layers_output(img, model, model_hdf5):
                 k = k + 1
     plt.show()
 
-def plot_input_for_layer(layer, model, img_rows, img_cols): 
+
+def plot_input_for_layer(layer, model, img_rows, img_cols):
     layers = model.layers
     first_layer = model.layers[0]
     input_img = first_layer.input
-    for m in layer: 
+    for m in layer:
         fig = plt.figure(m)
         fig.suptitle(layers[m])
         layer_output = layers[m].output
-        for k in range(9): 
+        for k in range(9):
             filter_index = k
             loss = T.mean(layer_output[:, filter_index, :, :])
             grads = T.grad(loss, input_img)[0]
             grads /= (K.sqrt(K.mean(K.square(grads))) + 1e-5)
-            iterate = K.function([input_img,K.learning_phase()], [loss, grads])
-            input_img_data = np.random.random((1, 1, img_rows, img_cols)) * 20 
+            iterate = K.function(
+                [input_img, K.learning_phase()], [loss, grads])
+            input_img_data = np.random.random((1, 1, img_rows, img_cols)) * 20
             step = 0.05
             for i in range(100):
-                loss_value, grads_value = iterate([input_img_data,1])
+                loss_value, grads_value = iterate([input_img_data, 1])
                 input_img_data += grads_value * step
             img = input_img_data[0][0]
             img = deprocess_image(img)
-            plt.subplot(3, 3, k+1)
+            plt.subplot(3, 3, k + 1)
             plt.imshow(img, cmap='Greys_r')
     plt.show()
+
 
 def deprocess_image(x):
     # normalize tensor: center on 0., ensure std is 0.1
@@ -89,5 +94,6 @@ if __name__ == "__main__":
     #plot_inner_layers_output(img=im, model=model, model_hdf5=file_name)
     img_rows = 128
     img_cols = 128
-    plot_input_for_layer(layer = [1, 3, 10, 15], model = model, img_rows = img_rows, img_cols = img_cols)
+    plot_input_for_layer(
+        layer=[1, 3, 10, 15], model=model, img_rows=img_rows, img_cols=img_cols)
     #layers = print_structure(file_name)
