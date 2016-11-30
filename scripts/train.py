@@ -32,7 +32,7 @@ def get_spark_model(model, model_name, model_id, train_config):
 
     master_server_port = int(train_config.get('master_server_port', 5000))
     worker_epoch_updates = int(
-        train_config.get('worker_epoch_updates'), 50)
+        train_config.get('worker_epoch_updates', 50))
     train_batch_size = int(train_config.get('train_batch_size'))
 
     logger.info("spark master server port : {0}".format(master_server_port))
