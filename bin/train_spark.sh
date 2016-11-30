@@ -68,7 +68,7 @@ echo "Start training"
 exec_env="export SPARK_CONF_DIR=${SPARK_CONF_DIR}"
 
 SPARK_COMMAND="$exec_env && spark-submit --num-executors 10 \
-    --master yarn-client --driver-memory 10G --executor-memory 6G \
+    --master yarn-client --driver-memory 10G --executor-memory 2G \
     --principal ${KERBEROS_PRINCIPAL} --keytab ${KERBEROS_KEYTAB} --proxy-user ${PROXY_USER} \
     --conf spark.akka.frameSize=1024 \
     --conf spark.network.timeout=600s \
