@@ -390,8 +390,8 @@ def parse_options():
     parser = argparse.ArgumentParser(description='Process DICOM Images.')
     parser.add_argument('--input_dirs', metavar='input_dirs', nargs='+',
                         help='input directory for source images and masks', required=True)
-    parser.add_argument('--output_dir', metavar='output_dir', nargs='?',
-                        help='output directory', required=True)
+    parser.add_argument('--output_file', metavar='output_file', nargs='?',
+                        help='output file', required=True)
     parser.add_argument('--config_file', metavar='config_file', nargs='?',
                         help='config file', required=True)
 
@@ -405,8 +405,8 @@ if __name__ == '__main__':
     config.read(args.config_file)
     data_config = dict(config.items('config'))
 
-    img_rows = data_config.get('img_rows', 512)
-    img_cols = data_config.get('img_cols', 512)
+    img_rows = int(data_config.get('img_rows', 512))
+    img_cols = int(data_config.get('img_cols', 512))
 
     reduced_img_rows = data_config.get('reduced_img_rows', None)
     reduced_img_cols = data_config.get('reduced_img_cols', None)
@@ -414,18 +414,18 @@ if __name__ == '__main__':
     cropped_img_rows = data_config.get('cropped_img_rows', None)
     cropped_img_cols = data_config.get('cropped_img_cols', None)
 
-    ggo_aug = data_config.get('ggo_aug', 20)
+    ggo_aug = int(data_config.get('ggo_aug', 50))
 
     reduced_size = None
     if reduced_img_rows and reduced_img_cols:
-        reduced_size = [reduced_img_rows, reduced_img_cols]
+        reduced_size = [int(reduced_img_rows), int(reduced_img_cols)]
 
     cropped_size = None
     if cropped_img_rows and cropped_img_cols:
-        reduced_size = [cropped_img_rows, cropped_img_cols]
+        reduced_size = [int(cropped_img_rows), int(cropped_img_cols)]
 
     train_imgs, train_masks, train_index = create_data(
-        args.input_dirs, args.output_dir, original_size=[
+        args.input_dirs, args.output_file, original_size=[
             img_rows, img_cols], normalization=True, reduced_size=reduced_size, ggo_aug=ggo_aug, crop=False,
         cropped_size=[cropped_img_rows, cropped_img_cols])
 
