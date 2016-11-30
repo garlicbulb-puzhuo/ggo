@@ -86,6 +86,6 @@ def get_unet(input_shape=(1, 128, 128), lr=1e-5, dropout_prob=0.5):
 
     model = Model(input=inputs, output=conv10)
 
-    model.compile(optimizer=Adam(lr=lr, clipnormal=1.0),
+    model.compile(optimizer=Adam(lr=lr, clipnorm=1.0),
                   loss=custom_loss, metrics=[custom_metric])
     return model, 'UNET'
