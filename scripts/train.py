@@ -61,7 +61,7 @@ def get_spark_model(model, model_name, model_id, train_config):
 
     conf = SparkConf().setAppName('Spark_Backend')
     sc = SparkContext(conf=conf)
-    adagrad = elephas_optimizers.Adagrad()
+    adagrad = elephas_optimizers.Adagrad(clipnorm=1.0)
 
     spark_model = SparkModel(sc, model, optimizer=adagrad, frequency='epoch',
                              mode='asynchronous', num_workers=4, master_loss=custom_loss, master_server_port=master_server_port,
