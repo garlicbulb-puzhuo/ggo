@@ -97,11 +97,11 @@ def get_img_mask_dict(img_dir, mask_dir):
 # images for each ggo image.
 
 
-def create_data(src_dirs, des_file, original_size, normalization=True, reduced_size=None, ggo_aug= 50, crop=False, cropped_size=None, label_smoothing = 1e-4):
+def create_data(src_dirs, des_file, original_size, normalization=True, reduced_size=None, ggo_aug=50, crop=False, cropped_size=None, label_smoothing=1e-4):
     if crop and cropped_size:
         img_rows = int(cropped_size[0])
         img_cols = int(cropped_size[1])
-    elif normalization and reduced_size != None:
+    elif reduced_size is not None:
         img_rows = int(reduced_size[0])
         img_cols = int(reduced_size[1])
     else:
@@ -144,9 +144,11 @@ def create_data(src_dirs, des_file, original_size, normalization=True, reduced_s
                                 mask, (img_cols, img_rows), interpolation=cv2.INTER_CUBIC)
                         has_ggo = True
                     else:
-                        mask = np.full((img_rows, img_cols), 255, dtype=np.uint8) 
-                        if label_smoothing != None: 
-                            index = np.random.choice([False,True],(img_rows, img_cols),replace=True, p=[1-label_smoothing, label_smoothing])
+                        mask = np.full((img_rows, img_cols),
+                                       255, dtype=np.uint8)
+                        if label_smoothing != None:
+                            index = np.random.choice([False, True], (img_rows, img_cols), replace=True, p=[
+                                                     1 - label_smoothing, label_smoothing])
                             mask[index] = 0
                     counter += 1
                     index = np.array(
@@ -154,7 +156,7 @@ def create_data(src_dirs, des_file, original_size, normalization=True, reduced_s
                     imgs.append([img_pixel])
                     masks.append([mask])
                     indices.append(index)
-                    
+
                     if ggo_aug > 1 and has_ggo:
                         for i in range(ggo_aug):
                             img_tf, mask_tf = transform(img_pixel, mask)
@@ -390,8 +392,8 @@ def parse_options():
     parser = argparse.ArgumentParser(description='Process DICOM Images.')
     parser.add_argument('--input_dirs', metavar='input_dirs', nargs='+',
                         help='input directory for source images and masks', required=True)
-    parser.add_argument('--output_dir', metavar='output_dir', nargs='?',
-                        help='output directory', required=True)
+    parser.add_argument('--output_file', metavar='output_file', nargs='?',
+                        help='output file', required=True)
     parser.add_argument('--config_file', metavar='config_file', nargs='?',
                         help='config file', required=True)
 
@@ -405,8 +407,8 @@ if __name__ == '__main__':
     config.read(args.config_file)
     data_config = dict(config.items('config'))
 
-    img_rows = data_config.get('img_rows', 512)
-    img_cols = data_config.get('img_cols', 512)
+    img_rows = int(data_config.get('img_rows', 512))
+    img_cols = int(data_config.get('img_cols', 512))
 
     reduced_img_rows = data_config.get('reduced_img_rows', None)
     reduced_img_cols = data_config.get('reduced_img_cols', None)
@@ -414,19 +416,17 @@ if __name__ == '__main__':
     cropped_img_rows = data_config.get('cropped_img_rows', None)
     cropped_img_cols = data_config.get('cropped_img_cols', None)
 
-    ggo_aug = data_config.get('ggo_aug', 20)
+    ggo_aug = int(data_config.get('ggo_aug', 50))
 
     reduced_size = None
     if reduced_img_rows and reduced_img_cols:
-        reduced_size = [reduced_img_rows, reduced_img_cols]
+        reduced_size = [int(reduced_img_rows), int(reduced_img_cols)]
 
     cropped_size = None
     if cropped_img_rows and cropped_img_cols:
-        reduced_size = [cropped_img_rows, cropped_img_cols]
+        reduced_size = [int(cropped_img_rows), int(cropped_img_cols)]
 
     train_imgs, train_masks, train_index = create_data(
-        args.input_dirs, args.output_dir, original_size=[
+        args.input_dirs, args.output_file, original_size=[
             img_rows, img_cols], normalization=True, reduced_size=reduced_size, ggo_aug=ggo_aug, crop=False,
-        cropped_size=[cropped_img_rows, cropped_img_cols])
-
-
+        cropped_size=cropped_size)

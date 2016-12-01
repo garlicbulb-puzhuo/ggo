@@ -3,16 +3,16 @@
 from __future__ import print_function
 
 from keras import models
-from keras.models import Model
-from keras.layers import Input, merge, Convolution2D, MaxPooling2D, UpSampling2D
-from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint
-from keras import backend as K
+from keras.callbacks import EarlyStopping
+from keras.callbacks import Callback
 
 import ConfigParser
 import argparse
 import sys
 import logging
+
+from loss import custom_loss
 
 from data_utils import train_val_data_generator, test_data_generator
 
@@ -23,18 +23,104 @@ logger.setLevel(logging.INFO)
 logging_handler_out = logging.StreamHandler(sys.stdout)
 logger.addHandler(logging_handler_out)
 
-def get_spark_model(model):
+
+def get_spark_model(model, model_name, model_id, train_config):
     from elephas.spark_model import SparkModel
     from elephas import optimizers as elephas_optimizers
     from pyspark import SparkContext, SparkConf
+    from elephas.spark_model import ModelCallback
+
+    master_server_port = int(train_config.get('master_server_port', 5000))
+    worker_epoch_updates = int(
+        train_config.get('worker_epoch_updates', 50))
+    train_batch_size = int(train_config.get('train_batch_size'))
+
+    logger.info("spark master server port : {0}".format(master_server_port))
+
+    class SparkModelCheckPoint(ModelCallback):
+
+        def __init__(self):
+            self.worker_epoch_updates = worker_epoch_updates
+            self.current_worker_epoch = 0
+
+        def on_update_parameters(self, parent_spark_model):
+            self.current_worker_epoch += 1
+            logger.info("get update parameters from worker: %d" %
+                        self.current_worker_epoch)
+            if self.current_worker_epoch % self.worker_epoch_updates == 0:
+                # update parent spark model's weights
+                parent_spark_model.update_weights()
+
+                # write parent spark model's weights
+                logger.info(
+                    'write intermediate weights for model %s %d' % (model_name, model_id))
+                parent_spark_model.master_network.save_weights(
+                    '%s.model%d.weights.batch%d.intermediate.hdf5' % (model_name, model_id, train_batch_size))
+
+    spark_model_callback = SparkModelCheckPoint()
 
     conf = SparkConf().setAppName('Spark_Backend')
     sc = SparkContext(conf=conf)
     adagrad = elephas_optimizers.Adagrad()
+
     spark_model = SparkModel(sc, model, optimizer=adagrad, frequency='epoch',
-                             mode='asynchronous', num_workers=4, master_loss=dice_coef_loss)
+                             mode='asynchronous', num_workers=4, master_loss=custom_loss, master_server_port=master_server_port,
+                             model_callbacks=[spark_model_callback])
 
     return sc, spark_model
+
+
+def get_standalone_model_callbacks(model_name, model_id, train_config):
+    early_stop_min_delta = float(
+        train_config.get('early_stop_min_delta', 0.01))
+    model_checkpoint = ModelCheckpoint(
+        '%s.model%d.model.hdf5' % (model_name, model_id), monitor='loss', save_best_only=True)
+    early_stop = EarlyStopping(
+        monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
+
+    return [model_checkpoint, early_stop]
+
+
+def get_spark_model_callbacks(train_config):
+    from elephas.spark_model import HistoryCallback
+    import os
+    import socket
+
+    class PrintHistoryCallback(Callback):
+
+        def on_epoch_end(self, epoch, logs={}):
+            keys = logs.keys()
+            values = logs.values()
+            keys.append('hostname')
+            keys.append('pid')
+            keys.append('epoch')
+            values.append(socket.gethostname())
+            values.append(os.getpid())
+            values.append(epoch)
+
+            print()
+            print("history and metadata keys: {0}".format(keys))
+            print("history and metadata values: {0}".format(values))
+
+    class GgoHistoryCallback(HistoryCallback):
+
+        def __init__(self):
+            pass
+
+        def on_receive_history(self, history, metadata):
+            # list all data in history
+            print("history and metadata keys: {0}, {1}".format(
+                history.history.keys(), metadata.keys()))
+            print("history and metadata values: {0}, {1}".format(
+                history.history.values(), metadata.values()))
+
+    early_stop_min_delta = float(
+        train_config.get('early_stop_min_delta', 0.01))
+    print_history = PrintHistoryCallback()
+    early_stop = EarlyStopping(
+        monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
+
+    return [print_history, early_stop]
 
 '''
 def train_val_split(imgs, masks, index, split_ratio = 0.1): 
@@ -60,9 +146,35 @@ def train_val_split(imgs, masks, index, split_ratio = 0.1):
 
 
 def train(train_imgs_path, train_mode, train_config):
-    print('-' * 30)
-    print('Loading and preprocessing train data...')
-    print('-' * 30)
+    def transfer_existing_model():
+        import glob
+        import re
+        import os
+
+        files = glob.glob("*[model|weights]*.hdf5")
+        li = 0
+
+        if files:
+            logger.info('Found existing model files in working directory')
+            files.sort(key=os.path.getmtime)
+            pattern = r".*iteration(\d+).*.hdf5"
+
+            for model_file in files:
+                logger.info('%s' % model_file)
+                match = re.search(pattern, model_file)
+                if match:
+                    m = re.match(pattern, model_file)
+                    li = int(m.group(0))
+            print('-' * 30)
+            print('Transferring from existing model...')
+            print('-' * 30)
+            logger.info(
+                'Load weights from the last modified model file %s' % files[-1])
+            model.load_weights(files[-1])
+            return True, li
+        else:
+            logger.info('No existing model files in working directory')
+            return False, li
 
     print('-' * 30)
     print('Creating and compiling model...')
@@ -81,60 +193,61 @@ def train(train_imgs_path, train_mode, train_config):
     if model_id == 3:
         from model_3 import get_unet
 
-    ### import model
     input_shape = (1, img_rows, img_cols)
+    model, model_name = get_unet(input_shape)
 
-    # train_output = 'unet123_BN.hdf5'
-
-    model = get_unet(input_shape)
-
-    if train_mode == 'spark':
-        sc, spark_model = get_spark_model(model)
-
-    print('-' * 30)
-    print('Fitting model...')
-    print('-' * 30)
+    # transfer model weights
+    transfer, last_iteration = transfer_existing_model()
 
     nb_epoch = int(train_config.get('nb_epoch'))
     train_batch_size = int(train_config.get('train_batch_size'))
     val_batch_size = int(train_config.get('val_batch_size'))
     data_gen_iteration = int(train_config.get('data_gen_iteration'))
+    batch_size = int(train_config.get('batch_size'))
+
+    if train_mode == 'spark':
+        sc, spark_model = get_spark_model(
+            model=model, model_name=model_name, model_id=model_id, train_config=train_config)
+        model_callbacks = get_spark_model_callbacks(train_config=train_config)
+    else:
+        model_callbacks = get_standalone_model_callbacks(
+            model_name=model_name, model_id=model_id, train_config=train_config)
+
     verbose = 1
     iteration = 1
 
+    print('-' * 30)
+    print('Fitting model...')
+    print('-' * 30)
     for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index in \
             train_val_data_generator(file=train_imgs_path, train_batch_size=train_batch_size, val_batch_size=val_batch_size, img_rows=img_rows,
                                      img_cols=img_cols, iter=data_gen_iteration):
-        print(train_imgs.shape)
+        print('-' * 30)
+        print('Loading and preprocessing train data for iteration %d...' % iteration)
+        print('-' * 30)
+
+        logger.info(train_imgs.shape)
 
         if train_mode == 'spark':
             from elephas.utils.rdd_utils import to_simple_rdd
-            from elephas.spark_model import HistoryCallback
 
-            class GgoHistoryCallback(HistoryCallback):
+            if transfer and iteration <= last_iteration:
+                logger.info('The current iteration is %d and less than or equal to the configured start iteration %d. Skip current iteration.' % (
+                    iteration, last_iteration))
+                iteration += 1
+                continue
 
-                def __init__(self):
-                    pass
-
-                def on_receive_history(self, history, metadata):
-                    # list all data in history
-                    print("history and metadata keys: {0}, {1}".format(
-                        history.history.keys(), metadata.keys()))
-                    print("history and metadata values: {0}, {1}".format(
-                        history.history.values(), metadata.values()))
-
-            history_callback = GgoHistoryCallback()
             rdd = to_simple_rdd(sc, train_imgs, train_masks)
-            spark_model.train(rdd, batch_size=32, nb_epoch=nb_epoch, verbose=verbose,
-                              validation_split=0.1, history_callback=history_callback)
-            model.save('unet.model1.%d.hdf5' % iteration)
-            models.save_model(model, 'unet.model2.%d.hdf5' % iteration)
-            model.save_weights('unet.weights.%d.hdf5' % iteration)
+            spark_model.train(rdd, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose,
+                              validation_split=0.1, callbacks=model_callbacks)
+
+            models.save_model(
+                model, '%s.model%d.model.batch%d.iteration%d.hdf5' % (model_name, model_id, train_batch_size, iteration))
+            model.save_weights(
+                '%s.model%d.weights.batch%d.iteration%d.hdf5' % (model_name, model_id, train_batch_size, iteration))
         else:
-            model_checkpoint = ModelCheckpoint(
-                'unet.hdf5', monitor='loss', save_best_only=True)
-            model.fit(train_imgs, train_masks, batch_size=32, nb_epoch=nb_epoch, validation_data=(val_imgs, val_masks), verbose=verbose, shuffle=True,
-                      callbacks=[model_checkpoint])
+            model.fit(train_imgs, train_masks, batch_size=batch_size, nb_epoch=nb_epoch, validation_data=(val_imgs, val_masks), verbose=verbose, shuffle=True,
+                      callbacks=model_callbacks)
 
         iteration += 1
 
@@ -160,7 +273,18 @@ def train(train_imgs_path, train_mode, train_config):
 def predict(model_file_path, test_imgs_path, config):
     img_rows = int(config.get('img_rows'))
     img_cols = int(config.get('img_cols'))
-    model = get_unet(img_rows=img_rows, img_cols=img_cols)
+
+    model_id = int(config.get('model_id'))
+    if model_id == 1:
+        from model_1 import get_unet
+
+    if model_id == 2:
+        from model_2 import get_unet
+
+    if model_id == 3:
+        from model_2 import get_unet
+
+    model, model_name = get_unet(img_rows=img_rows, img_cols=img_cols)
     model.load_weights(model_file_path)
     print(model.layers)
 
