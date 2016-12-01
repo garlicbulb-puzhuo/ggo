@@ -8,12 +8,11 @@ from __future__ import print_function
 from keras.layers import Convolution2D, MaxPooling2D, UpSampling2D, Dropout
 from keras.layers import Input
 from keras.layers.normalization import BatchNormalization
-from keras import backend as K
 from optimizer import sgd
 from loss import custom_loss, custom_metric
 
 
-def get_unet(input_shape=(1, 128, 128), lr=1e-5, dropout_prob=0.5):
+def get_unet(input_shape=(1, 128, 128), dropout_prob=0.5):
     inputs = Input(input_shape)
     # Block 1
     x = Convolution2D(64, 3, 3, activation='relu',

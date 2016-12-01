@@ -2,12 +2,12 @@ from __future__ import print_function
 
 from keras.models import Model
 from keras.layers import Input, merge, Convolution2D, MaxPooling2D, UpSampling2D, Dropout
-from optimizers import adam
+from optimizer import adam
 from keras.layers.normalization import BatchNormalization
 from loss import custom_loss, custom_metric
 
 
-def get_unet(input_shape=(1, 128, 128), lr=1e-5, dropout_prob=0.5):
+def get_unet(input_shape=(1, 128, 128), dropout_prob=0.5):
     inputs = Input(input_shape)
     conv1 = Convolution2D(32, 3, 3, activation='relu',
                           border_mode='same')(inputs)
