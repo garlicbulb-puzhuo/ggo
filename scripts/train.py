@@ -12,7 +12,7 @@ import argparse
 import sys
 import logging
 
-from loss import dice_coef_loss
+from loss import custom_loss
 
 from data_utils import train_val_data_generator, test_data_generator
 
@@ -32,7 +32,7 @@ def get_spark_model(model, model_name, model_id, train_config):
 
     master_server_port = int(train_config.get('master_server_port', 5000))
     worker_epoch_updates = int(
-        train_config.get('worker_epoch_updates'), 50)
+        train_config.get('worker_epoch_updates', 50))
     train_batch_size = int(train_config.get('train_batch_size'))
 
     logger.info("spark master server port : {0}".format(master_server_port))
@@ -64,7 +64,7 @@ def get_spark_model(model, model_name, model_id, train_config):
     adagrad = elephas_optimizers.Adagrad()
 
     spark_model = SparkModel(sc, model, optimizer=adagrad, frequency='epoch',
-                             mode='asynchronous', num_workers=4, master_loss=dice_coef_loss, master_server_port=master_server_port,
+                             mode='asynchronous', num_workers=4, master_loss=custom_loss, master_server_port=master_server_port,
                              model_callbacks=[spark_model_callback])
 
     return sc, spark_model
