@@ -12,7 +12,7 @@ from keras.layers import Flatten, Dense, Input
 from keras.layers import Convolution2D, MaxPooling2D, UpSampling2D, Dropout
 from keras.layers.normalization import BatchNormalization
 from keras import backend as K
-from keras.optimizers import Adam
+from optimizer import sgd
 from loss import custom_loss, custom_metric
 
 def get_unet(input_shape=(1, 128, 128), lr=1e-5, dropout_prob=0.5): 
@@ -88,6 +88,6 @@ def get_unet(input_shape=(1, 128, 128), lr=1e-5, dropout_prob=0.5):
 
     model = Model(input=inputs, output=x)
 
-    model.compile(optimizer=Adam(lr=lr), loss=custom_loss, metrics=[custom_metric])
+    model.compile(optimizer=sgd, loss=custom_loss, metrics=[custom_metric])
     return model
 
