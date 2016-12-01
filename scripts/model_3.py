@@ -5,6 +5,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+from keras.models import Model
 from keras.layers import Convolution2D, MaxPooling2D, UpSampling2D, Dropout
 from keras.layers import Input
 from keras.layers.normalization import BatchNormalization
