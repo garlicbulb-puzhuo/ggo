@@ -2,7 +2,7 @@ from __future__ import print_function
 
 from keras.models import Model
 from keras.layers import Input, merge, Convolution2D, MaxPooling2D, UpSampling2D, Dropout
-from keras.optimizers import Adam
+from optimizers import adam
 from keras.layers.normalization import BatchNormalization
 from loss import custom_loss, custom_metric
 
@@ -86,6 +86,6 @@ def get_unet(input_shape=(1, 128, 128), lr=1e-5, dropout_prob=0.5):
 
     model = Model(input=inputs, output=conv10)
 
-    model.compile(optimizer=Adam(lr=lr, clipnorm=1.0),
+    model.compile(optimizer=adam,
                   loss=custom_loss, metrics=[custom_metric])
     return model, 'UNET'
