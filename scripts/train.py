@@ -43,18 +43,18 @@ def get_spark_model(model, model_name, model_id, train_config):
             self.worker_epoch_updates = worker_epoch_updates
             self.current_worker_epoch = 0
 
-        def on_update_parameters(self, parent_spark_model):
+        def on_update_parameters(self, spark_model):
             self.current_worker_epoch += 1
             logger.info("get update parameters from worker: %d" %
                         self.current_worker_epoch)
             if self.current_worker_epoch % self.worker_epoch_updates == 0:
                 # update parent spark model's weights
-                parent_spark_model.update_weights()
+                spark_model.update_weights()
 
                 # write parent spark model's weights
                 logger.info(
                     'write intermediate weights for model %s %d' % (model_name, model_id))
-                parent_spark_model.master_network.save_weights(
+                spark_model.master_network.save_weights(
                     '%s.model%d.weights.batch%d.intermediate.hdf5' % (model_name, model_id, train_batch_size))
 
     spark_model_callback = SparkModelCheckPoint()
