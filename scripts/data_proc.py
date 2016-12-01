@@ -101,7 +101,7 @@ def create_data(src_dirs, des_file, original_size, normalization=True, reduced_s
     if crop and cropped_size:
         img_rows = int(cropped_size[0])
         img_cols = int(cropped_size[1])
-    elif normalization and reduced_size != None:
+    elif reduced_size is not None:
         img_rows = int(reduced_size[0])
         img_cols = int(reduced_size[1])
     else:
@@ -429,4 +429,4 @@ if __name__ == '__main__':
     train_imgs, train_masks, train_index = create_data(
         args.input_dirs, args.output_file, original_size=[
             img_rows, img_cols], normalization=True, reduced_size=reduced_size, ggo_aug=ggo_aug, crop=False,
-        cropped_size=[cropped_img_rows, cropped_img_cols])
+        cropped_size=cropped_size)
