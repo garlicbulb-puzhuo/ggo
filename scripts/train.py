@@ -108,11 +108,25 @@ def get_spark_model_callbacks(model_name, model_id, train_config):
             self.filepath = filepath
 
         def on_epoch_end(self, epoch, model, history):
+            print()
             print("saving worker model for epoch %s" % epoch)
             val_loss = history.history.get('val_loss')
             loss = history.history.get('loss')
             filepath = self.filepath.format(epoch=epoch, loss=loss, val_loss=val_loss)
             models.save_model(model, filepath)
+
+            keys = history.keys()
+            values = history.values()
+            keys.append('hostname')
+            keys.append('pid')
+            keys.append('epoch')
+            values.append(socket.gethostname())
+            values.append(os.getpid())
+            values.append(epoch)
+
+            print()
+            print("history and metadata keys: {0}".format(keys))
+            print("history and metadata values: {0}".format(values))
 
     early_stop_min_delta = float(
         train_config.get('early_stop_min_delta', 0.01))
@@ -122,7 +136,7 @@ def get_spark_model_callbacks(model_name, model_id, train_config):
 
     spark_worker_callback = SparkWorkerModelCheckpoint('%s.model%d.model.{epoch:02d}-{loss:.2f}-{val_loss:.2f}.hdf5' % (model_name, model_id))
 
-    return [print_history, early_stop], [spark_worker_callback]
+    return [early_stop], [spark_worker_callback]
 
 
 def train(train_imgs_path, train_mode, train_config):
