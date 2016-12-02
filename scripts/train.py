@@ -74,15 +74,15 @@ def get_standalone_model_callbacks(model_name, model_id, train_config):
     early_stop_min_delta = float(
         train_config.get('early_stop_min_delta', 0.01))
     model_checkpoint = ModelCheckpoint(
-        '%s.model%d.model.hdf5' % (model_name, model_id), monitor='loss', save_best_only=True)
+        '%s.model%d.model.{epoch:02d}-{val_loss:.2f}.hdf5' % (model_name, model_id), monitor='loss', save_best_only=True)
     early_stop = EarlyStopping(
         monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
 
     return [model_checkpoint, early_stop]
 
 
-def get_spark_model_callbacks(train_config):
-    from elephas.spark_model import HistoryCallback
+def get_spark_model_callbacks(model_name, model_id, train_config):
+    from elephas.spark_model import SparkWorkerCallback
     import os
     import socket
 
@@ -102,17 +102,17 @@ def get_spark_model_callbacks(train_config):
             print("history and metadata keys: {0}".format(keys))
             print("history and metadata values: {0}".format(values))
 
-    class GgoHistoryCallback(HistoryCallback):
+    class SparkWorkerModelCheckpoint(SparkWorkerCallback):
 
-        def __init__(self):
-            pass
+        def __init__(self, filepath):
+            self.filepath = filepath
 
-        def on_receive_history(self, history, metadata):
-            # list all data in history
-            print("history and metadata keys: {0}, {1}".format(
-                history.history.keys(), metadata.keys()))
-            print("history and metadata values: {0}, {1}".format(
-                history.history.values(), metadata.values()))
+        def on_epoch_end(self, epoch, model, history):
+            print("saving worker model for epoch %s" % epoch)
+            val_loss = history.history.get('val_loss')
+            loss = history.history.get('loss')
+            filepath = self.filepath.format(epoch=epoch, loss=loss, val_loss=val_loss)
+            models.save_model(model, filepath)
 
     early_stop_min_delta = float(
         train_config.get('early_stop_min_delta', 0.01))
@@ -120,29 +120,9 @@ def get_spark_model_callbacks(train_config):
     early_stop = EarlyStopping(
         monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
 
-    return [print_history, early_stop]
+    spark_worker_callback = SparkWorkerModelCheckpoint('%s.model%d.model.{epoch:02d}-{loss:.2f}-{val_loss:.2f}.hdf5' % (model_name, model_id))
 
-'''
-def train_val_split(imgs, masks, index, split_ratio = 0.1): 
-    total = len(index)
-    train = []
-    val = []
-    counter = 0 
-    for i in index:
-        r = random.random()
-        if r < 0.1: 
-            val.append(counter)
-        else: 
-            train.append(counter)
-        counter += 1
-    train_imgs = imgs[train,:,:,:]
-    train_masks = masks[train,:,:,:]
-    train_index = index[train]
-    val_imgs = imgs[val,:,:,:]
-    val_masks = masks[val,:,:,:]
-    val_index = index[val]
-    return train_imgs, train_masks, train_index, val_imgs, val_masks, val_index
-'''
+    return [print_history, early_stop], [spark_worker_callback]
 
 
 def train(train_imgs_path, train_mode, train_config):
@@ -208,7 +188,7 @@ def train(train_imgs_path, train_mode, train_config):
     if train_mode == 'spark':
         sc, spark_model = get_spark_model(
             model=model, model_name=model_name, model_id=model_id, train_config=train_config)
-        model_callbacks = get_spark_model_callbacks(train_config=train_config)
+        model_callbacks, worker_callbacks = get_spark_model_callbacks(model_name=model_name, model_id=model_id, train_config=train_config)
     else:
         model_callbacks = get_standalone_model_callbacks(
             model_name=model_name, model_id=model_id, train_config=train_config)
@@ -239,7 +219,7 @@ def train(train_imgs_path, train_mode, train_config):
 
             rdd = to_simple_rdd(sc, train_imgs, train_masks)
             spark_model.train(rdd, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose,
-                              validation_split=0.1, callbacks=model_callbacks)
+                              validation_split=0.1, callbacks=model_callbacks, worker_callbacks=worker_callbacks)
 
             models.save_model(
                 model, '%s.model%d.model.batch%d.iteration%d.hdf5' % (model_name, model_id, train_batch_size, iteration))
