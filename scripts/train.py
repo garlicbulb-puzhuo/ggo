@@ -16,12 +16,18 @@ from loss import custom_loss
 
 from data_utils import train_val_data_generator, test_data_generator
 
+import signal
+import traceback
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # match images and masks
 logging_handler_out = logging.StreamHandler(sys.stdout)
 logger.addHandler(logging_handler_out)
+
+
+signal.signal(signal.SIGUSR1, lambda sig, stack: traceback.print_stack(stack))
 
 
 def get_spark_model(model, model_name, model_id, train_config):
