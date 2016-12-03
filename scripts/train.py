@@ -116,9 +116,7 @@ def get_spark_model_callbacks(model_name, model_id, train_config):
         def on_epoch_end(self, epoch, model, history):
             print()
             print("saving worker model for epoch %s" % epoch)
-            val_loss = history.history.get('val_loss')
-            loss = history.history.get('loss')
-            filepath = self.filepath.format(epoch=epoch, loss=loss, val_loss=val_loss)
+            filepath = self.filepath.format(epoch=epoch, **history.history)
             models.save_model(model, filepath)
 
             keys = history.keys()
