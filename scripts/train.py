@@ -80,7 +80,7 @@ def get_standalone_model_callbacks(model_name, model_id, train_config):
     early_stop_min_delta = float(
         train_config.get('early_stop_min_delta', 0.01))
     model_checkpoint = ModelCheckpoint(
-        '%s.model%d.model.{epoch:02d}-{val_loss:.2f}.hdf5' % (model_name, model_id), monitor='loss', save_best_only=True)
+        '%s.model%d.model.{epoch:02d}-{val_loss:}.hdf5' % (model_name, model_id), monitor='loss', save_best_only=True)
     early_stop = EarlyStopping(
         monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
 
@@ -138,7 +138,7 @@ def get_spark_model_callbacks(model_name, model_id, train_config):
     early_stop = EarlyStopping(
         monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
 
-    spark_worker_callback = SparkWorkerModelCheckpoint('%s.model%d.model.{epoch:02d}-{loss:.2f}-{val_loss:.2f}.hdf5' % (model_name, model_id))
+    spark_worker_callback = SparkWorkerModelCheckpoint('%s.model%d.model.{epoch:02d}-{loss:}-{val_loss:}.hdf5' % (model_name, model_id))
 
     return [early_stop], [spark_worker_callback]
 
