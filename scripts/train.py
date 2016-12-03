@@ -119,8 +119,8 @@ def get_spark_model_callbacks(model_name, model_id, train_config):
             filepath = self.filepath.format(epoch=epoch, **history.history)
             models.save_model(model, filepath)
 
-            keys = history.keys()
-            values = history.values()
+            keys = history.history.keys()
+            values = history.history.values()
             keys.append('hostname')
             keys.append('pid')
             keys.append('epoch')
