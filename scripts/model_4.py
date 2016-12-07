@@ -1,5 +1,5 @@
 from keras.models import Model
-from keras.layers import Input, Dense, Flatten, merge, Lambda
+from keras.layers import Input, Dense, Flatten, merge, Lambda, Dropout
 from keras.layers.convolutional import Convolution2D, MaxPooling2D, AveragePooling2D, ZeroPadding2D, Deconvolution2D
 from keras.layers.normalization import BatchNormalization
 from keras.regularizers import l2
@@ -10,7 +10,7 @@ from loss import custom_loss, custom_metric
 # Evidently this model breaks Python's default recursion limit
 # This is a theano issue
 import sys
-sys.setrecursionlimit(10000)
+sys.setrecursionlimit(1000000)
 
 
 def BNConv(nb_filter, nb_row, nb_col, w_decay, subsample=(1, 1), border_mode="same"):
@@ -22,19 +22,22 @@ def BNConv(nb_filter, nb_row, nb_col, w_decay, subsample=(1, 1), border_mode="sa
     return f
 
 
-def get_unet(input_shape=(1, 128, 128), dropout_prob=0.5, w_decay=None):
+def inception_v3(input_shape, dropout_prob, w_decay=None):
     inputs = Input(shape=input_shape)
 
     conv_1 = BNConv(32, 3, 3, w_decay, subsample=(1, 1), border_mode="same")(inputs)
     conv_2 = BNConv(32, 3, 3, w_decay, border_mode="same")(conv_1)
     conv_3 = BNConv(64, 3, 3, w_decay)(conv_2)
-    pool_4 = MaxPooling2D(pool_size=(2, 2), strides=(2, 2), border_mode="same")(conv_3)
 
-    conv_5 = BNConv(80, 1, 1, w_decay)(pool_4)
+    pool_4 = MaxPooling2D(pool_size=(2, 2), strides=(2, 2), border_mode="same")(conv_3)
+    d = Dropout(dropout_prob)(pool_4)
+
+    conv_5 = BNConv(80, 1, 1, w_decay)(d)
     conv_6 = BNConv(192, 3, 3, w_decay, border_mode="same")(conv_5)
     pool_7 = MaxPooling2D(pool_size=(2, 2), strides=(2, 2), border_mode="same")(conv_6)
+    d = Dropout(dropout_prob)(pool_7)
 
-    inception_8 = InceptionFig5(w_decay)(pool_7)
+    inception_8 = InceptionFig5(w_decay)(d)
     inception_9 = InceptionFig5(w_decay)(inception_8)
     inception_10 = InceptionFig5(w_decay)(inception_9)
 
@@ -53,14 +56,34 @@ def get_unet(input_shape=(1, 128, 128), dropout_prob=0.5, w_decay=None):
 
     current_shape = (1280, input_shape[1]/16, input_shape[2]/16)
 
-    x = Deconvolution2D(512, 3, 3, output_shape = (None, 512, input_shape[1]/4, input_shape[2]/4))(inception_19)
+    x = Deconvolution2D(512, 3, 3, output_shape = (None, 512, input_shape[1]/8, input_shape[2]/8))(inception_19)
+    x = Deconvolution2D(128, 3, 3, output_shape = (None, 1, input_shape[1]/4, input_shape[2]/4))(x)
+    x = Deconvolution2D(32, 3, 3, output_shape = (None, 1, input_shape[1]/2, input_shape[2]/2))(x)
     x = Deconvolution2D(1, 3, 3, output_shape = (None, 1, input_shape[1], input_shape[2]))(x)
-
+  
     model = Model(input = inputs, output = x)
+
+    return model
+   
+    
+def get_unet(input_shape = (1, 128, 128), dropout_prob = 0.5, w_decay = None):
+    import sys
+    sys.setrecursionlimit(1000000)
+    import time
+    start = time.time()
+    model = inception_v3(input_shape, dropout_prob, w_decay)
+    duration = time.time() - start
+    print "{} s to make model".format(duration)
+    start = time.time()
+    model.output
+    duration = time.time() - start
+    print "{} s to get output".format(duration)
+    start = time.time()
     model.compile(optimizer=adam, loss=custom_loss, metrics=[custom_metric])
-
+    duration = time.time() - start
+    print "{} s to get compile".format(duration)
     return model, 'inception_v3'
-
+    
 
 def InceptionFig5(w_decay):
     def f(input):
