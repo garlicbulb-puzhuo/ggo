@@ -2,12 +2,12 @@ from __future__ import print_function
 
 from keras.models import Model
 from keras.layers import Input, merge, Convolution2D, MaxPooling2D, UpSampling2D, Dropout
-from optimizers import adam
+from optimizer import adam
 from keras.layers.normalization import BatchNormalization
 from loss import custom_loss, custom_metric
 
 
-def get_unet(input_shape=(1, 128, 128), lr=1e-5, dropout_prob=0.5):
+def get_unet(input_shape=(1, 128, 128), dropout_prob=0.5):
     inputs = Input(input_shape)
     conv1 = Convolution2D(32, 3, 3, activation='relu',
                           border_mode='same')(inputs)
@@ -21,7 +21,7 @@ def get_unet(input_shape=(1, 128, 128), lr=1e-5, dropout_prob=0.5):
                           border_mode='same')(dropout1)
     BN2 = BatchNormalization()(conv2)
     conv2 = Convolution2D(64, 3, 3, activation='relu',
-                          border_mode='same')(conv2)
+                          border_mode='same')(BN2)
     pool2 = MaxPooling2D(pool_size=(2, 2))(conv2)
     dropout2 = Dropout(dropout_prob)(pool2)
 
@@ -66,7 +66,7 @@ def get_unet(input_shape=(1, 128, 128), lr=1e-5, dropout_prob=0.5):
                           border_mode='same')(BN7)
     dropout7 = Dropout(dropout_prob)(conv7)
 
-    up8 = merge([UpSampling2D(size=(2, 2))(conv7), conv2],
+    up8 = merge([UpSampling2D(size=(2, 2))(dropout7), conv2],
                 mode='concat', concat_axis=1)
     conv8 = Convolution2D(64, 3, 3, activation='relu', border_mode='same')(up8)
     BN8 = BatchNormalization()(conv8)
@@ -74,7 +74,7 @@ def get_unet(input_shape=(1, 128, 128), lr=1e-5, dropout_prob=0.5):
                           border_mode='same')(BN8)
     dropout8 = Dropout(dropout_prob)(conv8)
 
-    up9 = merge([UpSampling2D(size=(2, 2))(conv8), conv1],
+    up9 = merge([UpSampling2D(size=(2, 2))(dropout8), conv1],
                 mode='concat', concat_axis=1)
     conv9 = Convolution2D(32, 3, 3, activation='relu', border_mode='same')(up9)
     BN9 = BatchNormalization()(conv9)

@@ -18,12 +18,18 @@ from loss import custom_loss
 
 from data_utils import train_val_data_generator, test_data_generator, train_val_generator
 
+import signal
+import traceback
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # match images and masks
 logging_handler_out = logging.StreamHandler(sys.stdout)
 logger.addHandler(logging_handler_out)
+
+
+signal.signal(signal.SIGUSR1, lambda sig, stack: traceback.print_stack(stack))
 
 
 def get_spark_model(model, model_name, model_id, train_config):
@@ -45,25 +51,25 @@ def get_spark_model(model, model_name, model_id, train_config):
             self.worker_epoch_updates = worker_epoch_updates
             self.current_worker_epoch = 0
 
-        def on_update_parameters(self, parent_spark_model):
+        def on_update_parameters(self, spark_model):
             self.current_worker_epoch += 1
             logger.info("get update parameters from worker: %d" %
                         self.current_worker_epoch)
             if self.current_worker_epoch % self.worker_epoch_updates == 0:
                 # update parent spark model's weights
-                parent_spark_model.update_weights()
+                spark_model.update_weights()
 
                 # write parent spark model's weights
                 logger.info(
                     'write intermediate weights for model %s %d' % (model_name, model_id))
-                parent_spark_model.master_network.save_weights(
+                spark_model.master_network.save_weights(
                     '%s.model%d.weights.batch%d.intermediate.hdf5' % (model_name, model_id, train_batch_size))
 
     spark_model_callback = SparkModelCheckPoint()
 
     conf = SparkConf().setAppName('Spark_Backend')
     sc = SparkContext(conf=conf)
-    adagrad = elephas_optimizers.Adagrad()
+    adagrad = elephas_optimizers.Adagrad(clipnorm=1.0)
 
     spark_model = SparkModel(sc, model, optimizer=adagrad, frequency='epoch',
                              mode='asynchronous', num_workers=4, master_loss=custom_loss, master_server_port=master_server_port,
@@ -101,8 +107,8 @@ def get_standalone_model_callbacks(model_name, model_id, train_config):
     return [model_checkpoint, print_history]
 
 
-def get_spark_model_callbacks(train_config):
-    from elephas.spark_model import HistoryCallback
+def get_spark_model_callbacks(model_name, model_id, train_config):
+    from elephas.spark_model import SparkWorkerCallback
     import os
     import socket
 
@@ -122,17 +128,29 @@ def get_spark_model_callbacks(train_config):
             print("history and metadata keys: {0}".format(keys))
             print("history and metadata values: {0}".format(values))
 
-    class GgoHistoryCallback(HistoryCallback):
+    class SparkWorkerModelCheckpoint(SparkWorkerCallback):
 
-        def __init__(self):
-            pass
+        def __init__(self, filepath):
+            self.filepath = filepath
 
-        def on_receive_history(self, history, metadata):
-            # list all data in history
-            print("history and metadata keys: {0}, {1}".format(
-                history.history.keys(), metadata.keys()))
-            print("history and metadata values: {0}, {1}".format(
-                history.history.values(), metadata.values()))
+        def on_epoch_end(self, epoch, model, history):
+            print()
+            print("saving worker model for epoch %s" % epoch)
+            filepath = self.filepath.format(epoch=epoch, **history.history)
+            models.save_model(model, filepath)
+
+            keys = history.history.keys()
+            values = history.history.values()
+            keys.append('hostname')
+            keys.append('pid')
+            keys.append('epoch')
+            values.append(socket.gethostname())
+            values.append(os.getpid())
+            values.append(epoch)
+
+            print()
+            print("history and metadata keys: {0}".format(keys))
+            print("history and metadata values: {0}".format(values))
 
     early_stop_min_delta = float(
         train_config.get('early_stop_min_delta', 0.01))
@@ -211,7 +229,7 @@ def train(train_imgs_path, train_mode, train_config):
     if train_mode == 'spark':
         sc, spark_model = get_spark_model(
             model=model, model_name=model_name, model_id=model_id, train_config=train_config)
-        model_callbacks = get_spark_model_callbacks(train_config=train_config)
+        model_callbacks, worker_callbacks = get_spark_model_callbacks(model_name=model_name, model_id=model_id, train_config=train_config)
     else:
         model_callbacks = get_standalone_model_callbacks(model_name=model_name, model_id=model_id, train_config=train_config)
 
@@ -248,7 +266,7 @@ def train(train_imgs_path, train_mode, train_config):
 
             rdd = to_simple_rdd(sc, train_imgs, train_masks)
             spark_model.train(rdd, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose,
-                              validation_split=0.1, callbacks=model_callbacks)
+                              validation_split=0.1, callbacks=model_callbacks, worker_callbacks=worker_callbacks)
 
             models.save_model(
                 model, '%s.model%d.model.batch%d.iteration%d.hdf5' % (model_name, model_id, train_batch_size, iteration))
