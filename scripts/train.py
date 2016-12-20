@@ -11,10 +11,12 @@ import ConfigParser
 import argparse
 import sys
 import logging
+import numpy as np
+import matplotlib.pyplot as plt
 
 from loss import custom_loss
 
-from data_utils import train_val_data_generator, test_data_generator
+from data_utils import train_val_data_generator, test_data_generator, train_val_generator
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -72,13 +74,31 @@ def get_spark_model(model, model_name, model_id, train_config):
 
 def get_standalone_model_callbacks(model_name, model_id, train_config):
     early_stop_min_delta = float(
-        train_config.get('early_stop_min_delta', 0.01))
+        train_config.get('early_stop_min_delta', 1e-6))
     model_checkpoint = ModelCheckpoint(
-        '%s.model%d.model.hdf5' % (model_name, model_id), monitor='loss', save_best_only=True)
-    early_stop = EarlyStopping(
-        monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
+        '%s.model%d.model_2.hdf5' % (model_name, model_id), monitor='loss', save_best_only=False)
+    #early_stop = EarlyStopping(monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
 
-    return [model_checkpoint, early_stop]
+    class LossHistory(Callback):
+        def __init__(self, filename): 
+            self.file = filename
+        def on_train_begin(self, logs={}):
+            self.losses = []
+            self.val_losses = []
+        def on_epoch_end(self, epoch, logs={}):
+            self.losses.append(logs.get('loss'))
+            self.val_losses.append(logs.get('val_loss'))
+            print("train_loss: {0}; val_loss: {1}".format(logs.get('loss'), logs.get('val_loss')))
+            losses = np.vstack((self.losses, self.val_losses))
+            np.savetxt(self.file, losses, delimiter = ',')
+    print_history = LossHistory("loss_history_2")
+
+    class printbatch(Callback):
+        def on_batch_end(self, epoch, logs={}):
+            print(logs)
+    
+    pb = printbatch()
+    return [model_checkpoint, print_history]
 
 
 def get_spark_model_callbacks(train_config):
@@ -121,28 +141,6 @@ def get_spark_model_callbacks(train_config):
         monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
 
     return [print_history, early_stop]
-
-'''
-def train_val_split(imgs, masks, index, split_ratio = 0.1): 
-    total = len(index)
-    train = []
-    val = []
-    counter = 0 
-    for i in index:
-        r = random.random()
-        if r < 0.1: 
-            val.append(counter)
-        else: 
-            train.append(counter)
-        counter += 1
-    train_imgs = imgs[train,:,:,:]
-    train_masks = masks[train,:,:,:]
-    train_index = index[train]
-    val_imgs = imgs[val,:,:,:]
-    val_masks = masks[val,:,:,:]
-    val_index = index[val]
-    return train_imgs, train_masks, train_index, val_imgs, val_masks, val_index
-'''
 
 
 def train(train_imgs_path, train_mode, train_config):
@@ -193,11 +191,16 @@ def train(train_imgs_path, train_mode, train_config):
     if model_id == 3:
         from model_3 import get_unet
 
+    if model_id ==4: 
+        import sys
+        sys.setrecursionlimit(1000000)
+        from model_4 import get_unet
+
     input_shape = (1, img_rows, img_cols)
     model, model_name = get_unet(input_shape)
 
     # transfer model weights
-    transfer, last_iteration = transfer_existing_model()
+    #transfer, last_iteration = transfer_existing_model()
 
     nb_epoch = int(train_config.get('nb_epoch'))
     train_batch_size = int(train_config.get('train_batch_size'))
@@ -210,8 +213,7 @@ def train(train_imgs_path, train_mode, train_config):
             model=model, model_name=model_name, model_id=model_id, train_config=train_config)
         model_callbacks = get_spark_model_callbacks(train_config=train_config)
     else:
-        model_callbacks = get_standalone_model_callbacks(
-            model_name=model_name, model_id=model_id, train_config=train_config)
+        model_callbacks = get_standalone_model_callbacks(model_name=model_name, model_id=model_id, train_config=train_config)
 
     verbose = 1
     iteration = 1
@@ -219,6 +221,13 @@ def train(train_imgs_path, train_mode, train_config):
     print('-' * 30)
     print('Fitting model...')
     print('-' * 30)
+
+    model.fit_generator(generator = train_val_generator(file=train_imgs_path, batch_size = 100, train_size=train_batch_size, val_size=val_batch_size, img_rows=img_rows, img_cols=img_cols, iter=data_gen_iteration, train_or_val = "train"), 
+        samples_per_epoch = 1000, nb_epoch = nb_epoch, verbose=verbose, callbacks=model_callbacks, 
+        validation_data = train_val_generator(file=train_imgs_path, batch_size = 50, train_size=train_batch_size, val_size=val_batch_size, img_rows=img_rows, img_cols=img_cols, iter=data_gen_iteration, train_or_val = "val"), 
+        nb_val_samples = 1000)
+
+    '''
     for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index in \
             train_val_data_generator(file=train_imgs_path, train_batch_size=train_batch_size, val_batch_size=val_batch_size, img_rows=img_rows,
                                      img_cols=img_cols, iter=data_gen_iteration):
@@ -246,10 +255,10 @@ def train(train_imgs_path, train_mode, train_config):
             model.save_weights(
                 '%s.model%d.weights.batch%d.iteration%d.hdf5' % (model_name, model_id, train_batch_size, iteration))
         else:
-            model.fit(train_imgs, train_masks, batch_size=batch_size, nb_epoch=nb_epoch, validation_data=(val_imgs, val_masks), verbose=verbose, shuffle=True,
-                      callbacks=model_callbacks)
+            model.fit(train_imgs, train_masks, batch_size=batch_size, nb_epoch=nb_epoch, validation_data=(val_imgs, val_masks), verbose=verbose, shuffle=True, callbacks=model_callbacks)
 
         iteration += 1
+    '''
 
     '''
     print('-'*30)
@@ -282,7 +291,7 @@ def predict(model_file_path, test_imgs_path, config):
         from model_2 import get_unet
 
     if model_id == 3:
-        from model_2 import get_unet
+        from model_3 import get_unet
 
     model, model_name = get_unet(img_rows=img_rows, img_cols=img_cols)
     model.load_weights(model_file_path)
