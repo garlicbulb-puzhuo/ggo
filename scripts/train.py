@@ -162,8 +162,9 @@ def get_spark_model_callbacks(model_name, model_id, train_config):
     print_history = PrintHistoryCallback()
     early_stop = EarlyStopping(
         monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
+    spark_worker_callback = SparkWorkerModelCheckpoint('%s.spark_model%d.model.{epoch:02d}-{loss:}-{val_loss:}.hdf5' % (model_name, model_id))
 
-    return [print_history, early_stop]
+    return [early_stop], [spark_worker_callback]
 
 
 def train(train_imgs_path, train_mode, train_config):
