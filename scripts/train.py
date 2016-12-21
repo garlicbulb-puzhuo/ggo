@@ -12,7 +12,6 @@ import argparse
 import sys
 import logging
 import numpy as np
-import matplotlib.pyplot as plt
 
 from loss import custom_loss
 
