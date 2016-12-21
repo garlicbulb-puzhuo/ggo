@@ -244,7 +244,7 @@ def train(train_imgs_path, train_mode, train_config):
     print('Fitting model...')
     print('-' * 30)
 
-    if train_mode == 'spark':
+    if train_mode == 'standalone':
         model.fit_generator(
             generator=train_val_generator(file=train_imgs_path, batch_size=100, train_size=train_batch_size, val_size=val_batch_size, img_rows=img_rows,
                                           img_cols=img_cols, iter=data_gen_iteration, train_or_val="train"),
