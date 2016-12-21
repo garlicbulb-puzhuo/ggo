@@ -86,24 +86,29 @@ def get_standalone_model_callbacks(model_name, model_id, train_config):
     #early_stop = EarlyStopping(monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
 
     class LossHistory(Callback):
-        def __init__(self, filename): 
+
+        def __init__(self, filename):
             self.file = filename
+
         def on_train_begin(self, logs={}):
             self.losses = []
             self.val_losses = []
+
         def on_epoch_end(self, epoch, logs={}):
             self.losses.append(logs.get('loss'))
             self.val_losses.append(logs.get('val_loss'))
-            print("train_loss: {0}; val_loss: {1}".format(logs.get('loss'), logs.get('val_loss')))
+            print("train_loss: {0}; val_loss: {1}".format(
+                logs.get('loss'), logs.get('val_loss')))
             losses = np.vstack((self.losses, self.val_losses))
-            np.savetxt(self.file, losses, delimiter = ',')
+            np.savetxt(self.file, losses, delimiter=',')
     print_history = LossHistory("loss_history_2")
 
-    class printbatch(Callback):
+    class PrintBatch(Callback):
+
         def on_batch_end(self, epoch, logs={}):
             print(logs)
-    
-    pb = printbatch()
+
+    pb = PrintBatch()
     return [model_checkpoint, print_history]
 
 
@@ -209,7 +214,7 @@ def train(train_imgs_path, train_mode, train_config):
     if model_id == 3:
         from model_3 import get_unet
 
-    if model_id ==4: 
+    if model_id == 4:
         import sys
         sys.setrecursionlimit(1000000)
         from model_4 import get_unet
@@ -229,9 +234,11 @@ def train(train_imgs_path, train_mode, train_config):
     if train_mode == 'spark':
         sc, spark_model = get_spark_model(
             model=model, model_name=model_name, model_id=model_id, train_config=train_config)
-        model_callbacks, worker_callbacks = get_spark_model_callbacks(model_name=model_name, model_id=model_id, train_config=train_config)
+        model_callbacks, worker_callbacks = get_spark_model_callbacks(
+            model_name=model_name, model_id=model_id, train_config=train_config)
     else:
-        model_callbacks = get_standalone_model_callbacks(model_name=model_name, model_id=model_id, train_config=train_config)
+        model_callbacks = get_standalone_model_callbacks(
+            model_name=model_name, model_id=model_id, train_config=train_config)
 
     verbose = 1
     iteration = 1
@@ -240,10 +247,11 @@ def train(train_imgs_path, train_mode, train_config):
     print('Fitting model...')
     print('-' * 30)
 
-    model.fit_generator(generator = train_val_generator(file=train_imgs_path, batch_size = 100, train_size=train_batch_size, val_size=val_batch_size, img_rows=img_rows, img_cols=img_cols, iter=data_gen_iteration, train_or_val = "train"), 
-        samples_per_epoch = 1000, nb_epoch = nb_epoch, verbose=verbose, callbacks=model_callbacks, 
-        validation_data = train_val_generator(file=train_imgs_path, batch_size = 50, train_size=train_batch_size, val_size=val_batch_size, img_rows=img_rows, img_cols=img_cols, iter=data_gen_iteration, train_or_val = "val"), 
-        nb_val_samples = 1000)
+    model.fit_generator(generator=train_val_generator(file=train_imgs_path, batch_size=100, train_size=train_batch_size, val_size=val_batch_size, img_rows=img_rows, img_cols=img_cols, iter=data_gen_iteration, train_or_val="train"),
+                        samples_per_epoch=1000, nb_epoch=nb_epoch, verbose=verbose, callbacks=model_callbacks,
+                        validation_data=train_val_generator(file=train_imgs_path, batch_size=50, train_size=train_batch_size,
+                                                            val_size=val_batch_size, img_rows=img_rows, img_cols=img_cols, iter=data_gen_iteration, train_or_val="val"),
+                        nb_val_samples=1000)
 
     '''
     for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index in \
