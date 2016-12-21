@@ -222,9 +222,6 @@ def train(train_imgs_path, train_mode, train_config):
     input_shape = (1, img_rows, img_cols)
     model, model_name = get_unet(input_shape)
 
-    # transfer model weights
-    #transfer, last_iteration = transfer_existing_model()
-
     nb_epoch = int(train_config.get('nb_epoch'))
     train_batch_size = int(train_config.get('train_batch_size'))
     val_batch_size = int(train_config.get('val_batch_size'))
@@ -247,14 +244,18 @@ def train(train_imgs_path, train_mode, train_config):
     print('Fitting model...')
     print('-' * 30)
 
-    model.fit_generator(generator=train_val_generator(file=train_imgs_path, batch_size=100, train_size=train_batch_size, val_size=val_batch_size, img_rows=img_rows, img_cols=img_cols, iter=data_gen_iteration, train_or_val="train"),
-                        samples_per_epoch=1000, nb_epoch=nb_epoch, verbose=verbose, callbacks=model_callbacks,
-                        validation_data=train_val_generator(file=train_imgs_path, batch_size=50, train_size=train_batch_size,
-                                                            val_size=val_batch_size, img_rows=img_rows, img_cols=img_cols, iter=data_gen_iteration, train_or_val="val"),
-                        nb_val_samples=1000)
-
-    '''
-    for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index in \
+    if train_mode == 'spark':
+        model.fit_generator(
+            generator=train_val_generator(file=train_imgs_path, batch_size=100, train_size=train_batch_size, val_size=val_batch_size, img_rows=img_rows,
+                                          img_cols=img_cols, iter=data_gen_iteration, train_or_val="train"),
+            samples_per_epoch=1000, nb_epoch=nb_epoch, verbose=verbose, callbacks=model_callbacks,
+            validation_data=train_val_generator(file=train_imgs_path, batch_size=50, train_size=train_batch_size,
+                                                val_size=val_batch_size, img_rows=img_rows, img_cols=img_cols, iter=data_gen_iteration, train_or_val="val"),
+            nb_val_samples=1000)
+    else:
+        # transfer model weights
+        transfer, last_iteration = transfer_existing_model()
+        for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index in \
             train_val_data_generator(file=train_imgs_path, train_batch_size=train_batch_size, val_batch_size=val_batch_size, img_rows=img_rows,
                                      img_cols=img_cols, iter=data_gen_iteration):
         print('-' * 30)
@@ -263,40 +264,23 @@ def train(train_imgs_path, train_mode, train_config):
 
         logger.info(train_imgs.shape)
 
-        if train_mode == 'spark':
-            from elephas.utils.rdd_utils import to_simple_rdd
+        from elephas.utils.rdd_utils import to_simple_rdd
 
-            if transfer and iteration <= last_iteration:
-                logger.info('The current iteration is %d and less than or equal to the configured start iteration %d. Skip current iteration.' % (
-                    iteration, last_iteration))
-                iteration += 1
-                continue
+        if transfer and iteration <= last_iteration:
+            logger.info('The current iteration is %d and less than or equal to the configured start iteration %d. Skip current iteration.' % (
+                iteration, last_iteration))
+            iteration += 1
+            continue
 
-            rdd = to_simple_rdd(sc, train_imgs, train_masks)
-            spark_model.train(rdd, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose,
-                              validation_split=0.1, callbacks=model_callbacks, worker_callbacks=worker_callbacks)
+        rdd = to_simple_rdd(sc, train_imgs, train_masks)
+        spark_model.train(rdd, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose,
+                          validation_split=0.1, callbacks=model_callbacks, worker_callbacks=worker_callbacks)
 
-            models.save_model(
-                model, '%s.model%d.model.batch%d.iteration%d.hdf5' % (model_name, model_id, train_batch_size, iteration))
-            model.save_weights(
-                '%s.model%d.weights.batch%d.iteration%d.hdf5' % (model_name, model_id, train_batch_size, iteration))
-        else:
-            model.fit(train_imgs, train_masks, batch_size=batch_size, nb_epoch=nb_epoch, validation_data=(val_imgs, val_masks), verbose=verbose, shuffle=True, callbacks=model_callbacks)
-
+        models.save_model(
+            model, '%s.model%d.model.batch%d.iteration%d.hdf5' % (model_name, model_id, train_batch_size, iteration))
+        model.save_weights(
+            '%s.model%d.weights.batch%d.iteration%d.hdf5' % (model_name, model_id, train_batch_size, iteration))
         iteration += 1
-    '''
-
-    '''
-    print('-'*30)
-    print('Loading and preprocessing test data...')
-    print('-'*30)
-    imgs_test, imgs_id_test = load_test_data()
-    imgs_test = preprocess(imgs_test)
-
-    imgs_test = imgs_test.astype('float32')
-    imgs_test -= mean
-    imgs_test /= std
-    '''
 
     print('-' * 30)
     print('Loading and preprocessing test data...')
