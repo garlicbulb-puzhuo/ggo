@@ -76,7 +76,8 @@ def test_data_generator(file, img_rows, img_cols, iter=1):
             train_val_data_generator(file, train_batch_size=1, val_batch_size=0, img_rows=img_rows, img_cols=img_cols, iter=iter):
         yield imgs, masks, index
 
-def train_val_generator(file, img_rows, img_cols, batch_size = 100, train_size=1, val_size=1, train_or_val = "both", iter = 1000, shuffle = True):
+
+def train_val_generator(file, img_rows, img_cols, batch_size=100, train_size=1, val_size=1, train_or_val="both", iter=1000, shuffle=True):
     f = h5py.File(file, 'r')
     f.visititems(list_all_patients)
     p_list = patient_group_dict.keys()
