@@ -12,7 +12,6 @@ import argparse
 import sys
 import logging
 import numpy as np
-import matplotlib.pyplot as plt
 
 from loss import custom_loss
 
@@ -162,8 +161,9 @@ def get_spark_model_callbacks(model_name, model_id, train_config):
     print_history = PrintHistoryCallback()
     early_stop = EarlyStopping(
         monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
+    spark_worker_callback = SparkWorkerModelCheckpoint('%s.spark_model%d.model.{epoch:02d}-{loss:}-{val_loss:}.hdf5' % (model_name, model_id))
 
-    return [print_history, early_stop]
+    return [early_stop], [spark_worker_callback]
 
 
 def train(train_imgs_path, train_mode, train_config):
@@ -222,9 +222,6 @@ def train(train_imgs_path, train_mode, train_config):
     input_shape = (1, img_rows, img_cols)
     model, model_name = get_unet(input_shape)
 
-    # transfer model weights
-    #transfer, last_iteration = transfer_existing_model()
-
     nb_epoch = int(train_config.get('nb_epoch'))
     train_batch_size = int(train_config.get('train_batch_size'))
     val_batch_size = int(train_config.get('val_batch_size'))
@@ -247,23 +244,26 @@ def train(train_imgs_path, train_mode, train_config):
     print('Fitting model...')
     print('-' * 30)
 
-    model.fit_generator(generator=train_val_generator(file=train_imgs_path, batch_size=100, train_size=train_batch_size, val_size=val_batch_size, img_rows=img_rows, img_cols=img_cols, iter=data_gen_iteration, train_or_val="train"),
-                        samples_per_epoch=1000, nb_epoch=nb_epoch, verbose=verbose, callbacks=model_callbacks,
-                        validation_data=train_val_generator(file=train_imgs_path, batch_size=50, train_size=train_batch_size,
-                                                            val_size=val_batch_size, img_rows=img_rows, img_cols=img_cols, iter=data_gen_iteration, train_or_val="val"),
-                        nb_val_samples=1000)
-
-    '''
-    for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index in \
+    if train_mode == 'standalone':
+        model.fit_generator(
+            generator=train_val_generator(file=train_imgs_path, batch_size=100, train_size=train_batch_size, val_size=val_batch_size, img_rows=img_rows,
+                                          img_cols=img_cols, iter=data_gen_iteration, train_or_val="train"),
+            samples_per_epoch=1000, nb_epoch=nb_epoch, verbose=verbose, callbacks=model_callbacks,
+            validation_data=train_val_generator(file=train_imgs_path, batch_size=50, train_size=train_batch_size,
+                                                val_size=val_batch_size, img_rows=img_rows, img_cols=img_cols, iter=data_gen_iteration, train_or_val="val"),
+            nb_val_samples=1000)
+    else:
+        # transfer model weights
+        transfer, last_iteration = transfer_existing_model()
+        for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index in \
             train_val_data_generator(file=train_imgs_path, train_batch_size=train_batch_size, val_batch_size=val_batch_size, img_rows=img_rows,
                                      img_cols=img_cols, iter=data_gen_iteration):
-        print('-' * 30)
-        print('Loading and preprocessing train data for iteration %d...' % iteration)
-        print('-' * 30)
+            print('-' * 30)
+            print('Loading and preprocessing train data for iteration %d...' % iteration)
+            print('-' * 30)
 
-        logger.info(train_imgs.shape)
+            logger.info(train_imgs.shape)
 
-        if train_mode == 'spark':
             from elephas.utils.rdd_utils import to_simple_rdd
 
             if transfer and iteration <= last_iteration:
@@ -280,23 +280,7 @@ def train(train_imgs_path, train_mode, train_config):
                 model, '%s.model%d.model.batch%d.iteration%d.hdf5' % (model_name, model_id, train_batch_size, iteration))
             model.save_weights(
                 '%s.model%d.weights.batch%d.iteration%d.hdf5' % (model_name, model_id, train_batch_size, iteration))
-        else:
-            model.fit(train_imgs, train_masks, batch_size=batch_size, nb_epoch=nb_epoch, validation_data=(val_imgs, val_masks), verbose=verbose, shuffle=True, callbacks=model_callbacks)
-
-        iteration += 1
-    '''
-
-    '''
-    print('-'*30)
-    print('Loading and preprocessing test data...')
-    print('-'*30)
-    imgs_test, imgs_id_test = load_test_data()
-    imgs_test = preprocess(imgs_test)
-
-    imgs_test = imgs_test.astype('float32')
-    imgs_test -= mean
-    imgs_test /= std
-    '''
+            iteration += 1
 
     print('-' * 30)
     print('Loading and preprocessing test data...')
