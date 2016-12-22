@@ -232,8 +232,8 @@ def train(train_imgs_path, train_mode, train_config):
     data_gen_iteration = int(train_config.get('data_gen_iteration'))
     batch_size = int(train_config.get('batch_size'))
 
-    samples_per_epoch = int(train_config.get('samples_per_epoch'), 1000)
-    nb_val_samples = int(train_config.get('nb_val_samples'), 1000)
+    samples_per_epoch = int(train_config.get('samples_per_epoch', 1000))
+    nb_val_samples = int(train_config.get('nb_val_samples', 1000))
 
     if train_mode == 'spark':
         sc, spark_model = get_spark_model(
