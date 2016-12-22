@@ -359,7 +359,7 @@ def parse_options():
 
     return parser.parse_args()
 
-def create_data_2(src_dirs, des_file, original_size, normalization=True, whitening=False, reduced_size=None, ggo_aug=50, crop=False, cropped_size=None, label_smoothing=1e-4):
+def create_data_2(src_dirs, des_file, original_size, normalization=True, whitening=False, reduced_size=None, ggo_aug=100, crop=False, cropped_size=None, label_smoothing=1e-4):
     if crop and cropped_size:
         img_rows = int(cropped_size[0])
         img_cols = int(cropped_size[1])
@@ -428,12 +428,12 @@ def create_data_2(src_dirs, des_file, original_size, normalization=True, whiteni
                             imgs.append([img_tf])
                             masks.append([mask_tf])
                             indices.append(index)
-                            #plt.imshow(img_tf)
-                            #plt.gray()
-                            #plt.show()
-                            #plt.imshow(mask_tf)
-                            #plt.gray()
-                            #plt.show()
+                            plt.imshow(img_tf)
+                            plt.gray()
+                            plt.show()
+                            plt.imshow(mask_tf)
+                            plt.gray()
+                            plt.show()
                     if counter % 1000 == 0:
                         print 'Done: {0} images'.format(counter)
 
