@@ -210,21 +210,21 @@ def train(train_imgs_path, train_mode, train_config):
 
     model_id = int(train_config.get('model_id'))
     if model_id == 1:
-        from model_1 import get_unet
+        from model_1 import get_model
 
     if model_id == 2:
-        from model_2 import get_unet
+        from model_2 import get_model
 
     if model_id == 3:
-        from model_3 import get_unet
+        from model_3 import get_model
 
     if model_id == 4:
         import sys
         sys.setrecursionlimit(1000000)
-        from model_4 import get_unet
+        from model_4 import get_model
 
     input_shape = (1, img_rows, img_cols)
-    model, model_name = get_unet(input_shape)
+    model, model_name = get_model(input_shape)
 
     nb_epoch = int(train_config.get('nb_epoch'))
     train_batch_size = int(train_config.get('train_batch_size'))
@@ -302,15 +302,15 @@ def predict(model_file_path, test_imgs_path, config):
 
     model_id = int(config.get('model_id'))
     if model_id == 1:
-        from model_1 import get_unet
+        from model_1 import get_model
 
     if model_id == 2:
-        from model_2 import get_unet
+        from model_2 import get_model
 
     if model_id == 3:
-        from model_3 import get_unet
+        from model_3 import get_model
 
-    model, model_name = get_unet(img_rows=img_rows, img_cols=img_cols)
+    model, model_name = get_model()
     model.load_weights(model_file_path)
     print(model.layers)
 

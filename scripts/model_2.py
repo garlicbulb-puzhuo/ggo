@@ -7,7 +7,7 @@ from keras.layers.normalization import BatchNormalization
 from loss import custom_loss, custom_metric
 
 
-def get_unet(input_shape=(1, 128, 128), dropout_prob=0.5):
+def get_model(input_shape=(1, 128, 128), dropout_prob=0.5):
     inputs = Input(input_shape)
     conv1 = Convolution2D(32, 3, 3, activation='relu',
                           border_mode='same')(inputs)

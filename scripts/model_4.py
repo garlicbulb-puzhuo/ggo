@@ -66,7 +66,7 @@ def inception_v3(input_shape, dropout_prob, w_decay=None):
     return model
    
     
-def get_unet(input_shape = (1, 128, 128), dropout_prob = 0.5, w_decay = None):
+def get_model(input_shape = (1, 128, 128), dropout_prob = 0.5, w_decay = None):
     import sys
     sys.setrecursionlimit(1000000)
     import time
