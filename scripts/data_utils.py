@@ -129,9 +129,9 @@ def train_val_generator(file, img_rows, img_cols, batch_size=100, train_size=1, 
             train_counter = train_counter + train_size + val_size
             remaining -= train_size + val_size
             if train_or_val == 'train': 
-                print "Now at train Iteration", counter
+                print " Now at train Iteration", counter
             if train_or_val == 'val': 
-                print "Now at val Iteration", counter
+                print " Now at val Iteration", counter
             counter += 1
 
             train_img_size = train_imgs.shape[0]
@@ -147,7 +147,7 @@ def train_val_generator(file, img_rows, img_cols, batch_size=100, train_size=1, 
                     train_mask_batch = train_masks[start_index:end_index, :, :, :]
                     start_index = end_index
                     end_index = start_index + batch_size                        
-                    print "now yielding train batch", batch
+                    print " now yielding train batch", batch
                     batch += 1 
                     yield (train_img_batch, train_mask_batch)
             if train_or_val == "val": 
@@ -159,7 +159,7 @@ def train_val_generator(file, img_rows, img_cols, batch_size=100, train_size=1, 
                     val_mask_batch = val_masks[start_index:end_index, :, :, :]
                     start_index = end_index
                     end_index = start_index + batch_size
-                    print "now yielding val batch", batch
+                    print " now yielding val batch", batch
                     batch += 1 
                     yield (val_img_batch, val_mask_batch)
 
