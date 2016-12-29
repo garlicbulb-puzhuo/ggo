@@ -68,9 +68,9 @@ def get_spark_model(model, model_name, model_id, train_config):
 
     conf = SparkConf().setAppName('Spark_Backend')
     sc = SparkContext(conf=conf)
-    adagrad = elephas_optimizers.Adagrad(clipnorm=1.0)
+    adam = elephas_optimizers.Adam(clipnorm=1.0)
 
-    spark_model = SparkModel(sc, model, optimizer=adagrad, frequency='epoch',
+    spark_model = SparkModel(sc, model, optimizer=adam, frequency='epoch',
                              mode='asynchronous', num_workers=4, master_loss=custom_loss, master_server_port=master_server_port,
                              model_callbacks=[spark_model_callback])
 
@@ -80,14 +80,18 @@ def get_spark_model(model, model_name, model_id, train_config):
 def get_standalone_model_callbacks(model_name, model_id, train_config):
     early_stop_min_delta = float(
         train_config.get('early_stop_min_delta', 1e-6))
+    # early_stop = EarlyStopping(monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
+
     model_checkpoint = ModelCheckpoint(
-        '%s.model%d.model_2.hdf5' % (model_name, model_id), monitor='loss', save_best_only=False)
-    #early_stop = EarlyStopping(monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
+        '%s.model%d.model_2.{epoch:02d}.hdf5' % (model_name, model_id), monitor='loss', save_best_only=False)
+
+    standalone_loss_history_file = train_config.get('standalone_loss_history_file', 'standalone_loss_history_file')
 
     class LossHistory(Callback):
-
         def __init__(self, filename):
             self.file = filename
+            self.losses = []
+            self.val_losses = []
 
         def on_train_begin(self, logs={}):
             self.losses = []
@@ -100,10 +104,10 @@ def get_standalone_model_callbacks(model_name, model_id, train_config):
                 logs.get('loss'), logs.get('val_loss')))
             losses = np.vstack((self.losses, self.val_losses))
             np.savetxt(self.file, losses, delimiter=',')
-    print_history = LossHistory("loss_history_2")
+
+    print_history = LossHistory(standalone_loss_history_file)
 
     class PrintBatch(Callback):
-
         def on_batch_end(self, epoch, logs={}):
             print(logs)
 
@@ -206,27 +210,30 @@ def train(train_imgs_path, train_mode, train_config):
 
     model_id = int(train_config.get('model_id'))
     if model_id == 1:
-        from model_1 import get_unet
+        from model_1 import get_model
 
     if model_id == 2:
-        from model_2 import get_unet
+        from model_2 import get_model
 
     if model_id == 3:
-        from model_3 import get_unet
+        from model_3 import get_model
 
     if model_id == 4:
         import sys
         sys.setrecursionlimit(1000000)
-        from model_4 import get_unet
+        from model_4 import get_model
 
     input_shape = (1, img_rows, img_cols)
-    model, model_name = get_unet(input_shape)
+    model, model_name = get_model(input_shape)
 
     nb_epoch = int(train_config.get('nb_epoch'))
     train_batch_size = int(train_config.get('train_batch_size'))
     val_batch_size = int(train_config.get('val_batch_size'))
     data_gen_iteration = int(train_config.get('data_gen_iteration'))
     batch_size = int(train_config.get('batch_size'))
+
+    samples_per_epoch = int(train_config.get('samples_per_epoch', 1000))
+    nb_val_samples = int(train_config.get('nb_val_samples', 1000))
 
     if train_mode == 'spark':
         sc, spark_model = get_spark_model(
@@ -246,12 +253,12 @@ def train(train_imgs_path, train_mode, train_config):
 
     if train_mode == 'standalone':
         model.fit_generator(
-            generator=train_val_generator(file=train_imgs_path, batch_size=100, train_size=train_batch_size, val_size=val_batch_size, img_rows=img_rows,
+            generator=train_val_generator(file=train_imgs_path, batch_size=batch_size, train_size=train_batch_size, val_size=val_batch_size, img_rows=img_rows,
                                           img_cols=img_cols, iter=data_gen_iteration, train_or_val="train"),
-            samples_per_epoch=1000, nb_epoch=nb_epoch, verbose=verbose, callbacks=model_callbacks,
-            validation_data=train_val_generator(file=train_imgs_path, batch_size=50, train_size=train_batch_size,
+            samples_per_epoch=samples_per_epoch, nb_epoch=nb_epoch, verbose=verbose, callbacks=model_callbacks,
+            validation_data=train_val_generator(file=train_imgs_path, batch_size=batch_size, train_size=train_batch_size,
                                                 val_size=val_batch_size, img_rows=img_rows, img_cols=img_cols, iter=data_gen_iteration, train_or_val="val"),
-            nb_val_samples=1000)
+            nb_val_samples=nb_val_samples)
     else:
         # transfer model weights
         transfer, last_iteration = transfer_existing_model()
@@ -295,15 +302,15 @@ def predict(model_file_path, test_imgs_path, config):
 
     model_id = int(config.get('model_id'))
     if model_id == 1:
-        from model_1 import get_unet
+        from model_1 import get_model
 
     if model_id == 2:
-        from model_2 import get_unet
+        from model_2 import get_model
 
     if model_id == 3:
-        from model_3 import get_unet
+        from model_3 import get_model
 
-    model, model_name = get_unet(img_rows=img_rows, img_cols=img_cols)
+    model, model_name = get_model()
     model.load_weights(model_file_path)
     print(model.layers)
 

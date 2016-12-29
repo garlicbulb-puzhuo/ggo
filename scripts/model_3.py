@@ -13,7 +13,7 @@ from optimizer import sgd
 from loss import custom_loss, custom_metric
 
 
-def get_unet(input_shape=(1, 128, 128), dropout_prob=0.5):
+def get_model(input_shape=(1, 128, 128), dropout_prob=0.5):
     inputs = Input(input_shape)
     # Block 1
     x = Convolution2D(64, 3, 3, activation='relu',
