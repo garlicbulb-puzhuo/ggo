@@ -292,7 +292,7 @@ def train(train_imgs_path, train_mode, train_config):
                 continue
 
             rdd = to_simple_rdd(sc, train_imgs, train_masks)
-            spark_model.train(rdd, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose,
+            spark_model.train(rdd, iteration=iteration, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose,
                               validation_split=0.1, callbacks=model_callbacks, worker_callbacks=worker_callbacks)
 
             models.save_model(
