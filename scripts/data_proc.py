@@ -21,6 +21,8 @@ import scipy.ndimage as ndi
 from data_utils import train_val_data_generator, test_data_generator
 import matplotlib.pyplot as plt
 from scipy import linalg
+from sklearn.cluster import KMeans
+
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -378,6 +380,10 @@ def create_data_2(src_dirs, des_file, original_size, normalization=True, whiteni
         img_dict = get_img_mask_dict(img_dir, mask_dir)
         counter = 0
         for p in img_dict.keys():
+            ggo_flag = []
+            imgs_unfiltered = []
+            masks_unfiltered = []
+            indices_unfiltered = []
             for s in img_dict[p]['img_series'].keys():
                 for img_path, mask_path in zip(img_dict[p]['img_series'][s]['imgs'], img_dict[p]['img_series'][s]['masks']):
                     try:
@@ -393,6 +399,7 @@ def create_data_2(src_dirs, des_file, original_size, normalization=True, whiteni
                         img_pixel = cv2.resize(
                             img_pixel, (img_cols, img_rows), interpolation=cv2.INTER_CUBIC)
                     has_ggo = False
+                    ggo_flag.append(False)
                     if hasattr(img, 'BodyPartExamined'):
                         body_part = img.BodyPartExamined
                     else:
@@ -405,6 +412,7 @@ def create_data_2(src_dirs, des_file, original_size, normalization=True, whiteni
                             mask = cv2.resize(
                                 mask, (img_cols, img_rows), interpolation=cv2.INTER_CUBIC)
                         has_ggo = True
+                        ggo_flag[-1] = True
                     else:
                         mask = np.full((img_rows, img_cols),
                                        255, dtype=np.uint8)
@@ -415,9 +423,9 @@ def create_data_2(src_dirs, des_file, original_size, normalization=True, whiteni
                     counter += 1
                     index = np.array(
                         [p, str(counter), str(has_ggo), str(body_part)])
-                    imgs.append([img_pixel])
-                    masks.append([mask])
-                    indices.append(index)
+                    imgs_unfiltered.append([img_pixel])
+                    masks_unfiltered.append([mask])
+                    indices_unfiltered.append(index)
                     if ggo_aug > 1 and has_ggo:
                         for i in range(ggo_aug):
                             img_tf, mask_tf = random_transform(img_pixel, mask, 
@@ -428,15 +436,17 @@ def create_data_2(src_dirs, des_file, original_size, normalization=True, whiteni
                             imgs.append([img_tf])
                             masks.append([mask_tf])
                             indices.append(index)
-                            plt.imshow(img_tf)
-                            plt.gray()
-                            plt.show()
-                            plt.imshow(mask_tf)
-                            plt.gray()
-                            plt.show()
                     if counter % 1000 == 0:
                         print 'Done: {0} images'.format(counter)
-
+            ix = clustering(imgs_unfiltered, ggo_flag).tolist()
+            imgs_filtered = [x for x, is_good in zip(imgs_unfiltered, ix) if is_good]
+            #print "before filtering:", len(imgs_unfiltered), "after filtering:", len(imgs_filtered) 
+            masks_filtered = [x for x, is_good in zip(masks_unfiltered, ix) if is_good]
+            indices_filtered = [x for x, is_good in zip(indices_unfiltered, ix) if is_good]
+            imgs = imgs + imgs_filtered
+            masks = masks + masks_filtered
+            indices = indices + indices_filtered
+        print 'Total number of images after filtering:', len(imgs)
         if normalization:
             m = np.mean(imgs).astype(np.float32)
             imgs -= m
@@ -563,6 +573,37 @@ def zca_whitening(X):
         whitex = np.dot(flatx, principal_components)
         XW[i,:,:,:] = np.reshape(whitex, (x.shape[0], x.shape[1], x.shape[2]))
     return XW
+
+def clustering(imgs, ggo_flag): 
+    #print "image length:", len(imgs), "flag length:", len(ggo_flag)
+    ix = np.full((len(ggo_flag),), False, dtype=bool)
+    imgs = [np.asarray(x).flatten() for x in imgs]
+    imgs = np.asarray(imgs)
+    imgs = imgs.astype(np.float32)
+    m = np.mean(imgs).astype(np.float32)
+    imgs -= m
+    st = np.std(imgs).astype(np.float32)
+    imgs /= (st + 1e-6)
+    kmeans = KMeans(n_clusters=3, random_state=np.random.RandomState(0)).fit(imgs)
+    for i in range(3): 
+        if sum(kmeans.labels_[np.asarray(ggo_flag)] == i) > 0: 
+            ix[np.where(kmeans.labels_ == i)[0]] = True
+    ix[np.where(np.asarray(ggo_flag))] = True
+    return ix
+    '''
+    print "clusters:", sum(kmeans.labels_ == 0), sum(kmeans.labels_ == 1), sum(kmeans.labels_ == 2)
+    print "has_ggo", sum(ggo_flag)
+    print sum(kmeans.labels_[np.asarray(ggo_flag)] == 0), sum(kmeans.labels_[np.asarray(ggo_flag)] == 1), sum(kmeans.labels_[np.asarray(ggo_flag)] == 2)
+    plt.imshow(imgs[np.where(kmeans.labels_ == 0)[0][0],:].reshape(128,128))
+    plt.gray()
+    plt.show()
+    plt.imshow(imgs[np.where(kmeans.labels_ == 1)[0][0],:].reshape(128,128))
+    plt.gray()
+    plt.show()
+    plt.imshow(imgs[np.where(kmeans.labels_ == 2)[0][0],:].reshape(128,128))
+    plt.gray()
+    plt.show()
+    '''
 
 if __name__ == '__main__':
     args = parse_options()
