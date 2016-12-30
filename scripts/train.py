@@ -155,7 +155,7 @@ def get_spark_model_callbacks(model_name, model_id, train_config):
             print()
             if (epoch + 1) % self.worker_epoch_updates == 0:
                 print("saving worker model for epoch %s" % epoch)
-                model_filepath = self.model_filepath.format(epoch=epoch, **history.history)
+                model_filepath = self.model_filepath.format(epoch=epoch, iteration=iteration, **history.history)
                 models.save_model(model, model_filepath)
 
             keys = history.history.keys()
@@ -178,7 +178,7 @@ def get_spark_model_callbacks(model_name, model_id, train_config):
     print_history = PrintHistoryCallback()
     early_stop = EarlyStopping(
         monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
-    spark_worker_callback = SparkWorkerModelCheckpoint('%s.spark_model%d.model.{epoch:02d}-{loss:}-{val_loss:}.hdf5' % (model_name, model_id))
+    spark_worker_callback = SparkWorkerModelCheckpoint('%s.spark_model%d.model.{iteration:}.{epoch:02d}.hdf5' % (model_name, model_id))
 
     return [early_stop], [spark_worker_callback]
 
