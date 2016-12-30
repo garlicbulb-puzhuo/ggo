@@ -144,9 +144,8 @@ def get_spark_model_callbacks(model_name, model_id, train_config):
 
     class SparkWorkerModelCheckpoint(SparkWorkerCallback):
 
-        def __init__(self, model_filepath, loss_filepath):
+        def __init__(self, model_filepath):
             self.model_filepath = model_filepath
-            self.loss_filepath = loss_filepath
             self.worker_epoch_updates = worker_epoch_updates
             self.losses = []
             self.val_losses = []
