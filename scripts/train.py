@@ -83,7 +83,7 @@ def get_standalone_model_callbacks(model_name, model_id, train_config):
     early_stop = EarlyStopping(monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
 
     model_checkpoint = ModelCheckpoint(
-        '%s.model%d.{epoch:02d}.hdf5' % (model_name, model_id), monitor='loss', save_best_only=False)
+        '%s.standalone.model%d.{epoch:02d}.hdf5' % (model_name, model_id), monitor='loss', save_best_only=False)
 
     standalone_loss_history_file = train_config.get('standalone_loss_history_file', 'standalone_loss_history_file')
 
@@ -177,7 +177,7 @@ def get_spark_model_callbacks(model_name, model_id, train_config):
     print_history = PrintHistoryCallback()
     early_stop = EarlyStopping(
         monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
-    spark_worker_callback = SparkWorkerModelCheckpoint('%s.spark_model%d.model.{iteration:}.{epoch:02d}.hdf5' % (model_name, model_id))
+    spark_worker_callback = SparkWorkerModelCheckpoint('%s.spark.model%d.{iteration:}.{epoch:02d}.hdf5' % (model_name, model_id))
 
     return [early_stop], [spark_worker_callback]
 
@@ -296,9 +296,7 @@ def train(train_imgs_path, train_mode, train_config):
                               validation_split=0.1, callbacks=model_callbacks, worker_callbacks=worker_callbacks)
 
             models.save_model(
-                model, '%s.model%d.model.batch%d.iteration%d.hdf5' % (model_name, model_id, train_batch_size, iteration))
-            model.save_weights(
-                '%s.model%d.weights.batch%d.iteration%d.hdf5' % (model_name, model_id, train_batch_size, iteration))
+                model, '%s.spark.model%d.batch%d.iteration%d.hdf5' % (model_name, model_id, train_batch_size, iteration))
             iteration += 1
 
     print('-' * 30)
