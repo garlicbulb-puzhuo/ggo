@@ -17,7 +17,11 @@ import h5py
 import ConfigParser
 import argparse
 import sys
+import scipy.ndimage as ndi
 from data_utils import train_val_data_generator, test_data_generator
+import matplotlib.pyplot as plt
+from scipy import linalg
+from sklearn.cluster import KMeans
 
 
 logger = logging.getLogger()
@@ -220,45 +224,6 @@ def load_data_from_hdf5(file, patientID, patient_group_dict):
     ix = indices[:, 0] == patientID
     return imgs[ix, :, :, :], masks[ix, :, :, :], indices[ix, :]
 
-
-def transform_train_data_generator(file, train_batch_size=5, normalization=True, reduced_size=None, augmentationfactor=1):
-    f = h5py.File(file, 'r')
-    f.visititems(list_all_patients)
-    p_list = patient_group_dict.keys()
-    remaining = len(p_list)
-    counter = 0
-    if train_batch_size > remaining:
-        print 'Not enough data!'
-    while train_batch_size < remaining:
-        p_sublist = p_list[counter:(counter + train_batch_size)]
-        train_imgs = np.array([]).reshape((0, 1, 512, 512))
-        train_masks = np.array([]).reshape((0, 1, 512, 512))
-        train_index = np.array([]).reshape((0, 4))
-        for p in p_sublist:
-            imgs, masks, indices = load_data_from_hdf5(
-                file, p, patient_group_dict)
-            train_imgs = np.vstack((train_imgs, imgs))
-            train_masks = np.vstack((train_masks, masks))
-            train_index = np.vstack((train_index, indices))
-        counter = counter + train_batch_size
-        remaining -= train_batch_size
-
-        data_shape = train_imgs.shape
-        train_imgs_tf = np.ndarray(
-            (data_shape[0] * augmentationfactor, data_shape[1], data_shape[2], data_shape[3]))
-        train_masks_tf = np.ndarray(
-            (data_shape[0] * augmentationfactor, data_shape[1], data_shape[2], data_shape[3]))
-        count = 0
-        for i in range(data_shape[0]):
-            for j in range(augmentationfactor):
-                train_imgs_tf[count][0], train_masks_tf[count][0] = transform(
-                    train_imgs[count][0], train_masks[count][0])
-                count += 1
-        train_imgs_p, m, st = preprocessing_imgs(train_imgs_tf, reduced_size)
-        train_masks_p = preprocessing_masks(train_masks_tf, reduced_size)
-        yield train_imgs_p, train_imgs_p
-
-
 def preprocessing_imgs(train_imgs, reduced_size=None):
     # resizing
     if reduced_size is not None:
@@ -295,9 +260,6 @@ def transform(image, mask):  # translate, shear, stretch, flips?
     alpha = random.uniform(0, 5)
     sigma = random.exponential(scale=5) + 2 + alpha**2
     def_image, def_mask = elastic_transform(def_image, def_mask, alpha, sigma)
-
-    #def_image = def_image[10:-10, 10:-10]
-    #def_mask = def_mask[10:-10, 10:-10]
     return def_image, def_mask
 
 # sigma: variance of filter, fixes homogeneity of transformation
@@ -399,6 +361,249 @@ def parse_options():
 
     return parser.parse_args()
 
+def create_data_2(src_dirs, des_file, original_size, normalization=True, whitening=False, reduced_size=None, ggo_aug=100, crop=False, cropped_size=None, label_smoothing=1e-4):
+    if crop and cropped_size:
+        img_rows = int(cropped_size[0])
+        img_cols = int(cropped_size[1])
+    elif reduced_size is not None:
+        img_rows = int(reduced_size[0])
+        img_cols = int(reduced_size[1])
+    else:
+        img_rows = int(original_size[0])
+        img_cols = int(original_size[1])
+    f = h5py.File(des_file, "w")
+    for img_dir in src_dirs:
+        imgs = []
+        masks = []
+        indices = []
+        mask_dir = img_dir + '_MASK'
+        img_dict = get_img_mask_dict(img_dir, mask_dir)
+        counter = 0
+        for p in img_dict.keys():
+            ggo_flag = []
+            imgs_unfiltered = []
+            masks_unfiltered = []
+            indices_unfiltered = []
+            for s in img_dict[p]['img_series'].keys():
+                for img_path, mask_path in zip(img_dict[p]['img_series'][s]['imgs'], img_dict[p]['img_series'][s]['masks']):
+                    try:
+                        img = dicom.read_file(img_path)
+                    except IOError:
+                        print 'No such file'
+                    except InvalidDicomError:
+                        print 'Invalid Dicom file {0}'.format(img)
+                    img_pixel = np.array(img.pixel_array)
+                    if crop:
+                        img_pixel = img_pixel[90:450, 40:470]
+                    if reduced_size != None:
+                        img_pixel = cv2.resize(
+                            img_pixel, (img_cols, img_rows), interpolation=cv2.INTER_CUBIC)
+                    has_ggo = False
+                    ggo_flag.append(False)
+                    if hasattr(img, 'BodyPartExamined'):
+                        body_part = img.BodyPartExamined
+                    else:
+                        body_part = None
+                    if mask_path != None:
+                        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+                        if crop:
+                            mask = mask[90:450, 40:470]
+                        if reduced_size != None:
+                            mask = cv2.resize(
+                                mask, (img_cols, img_rows), interpolation=cv2.INTER_CUBIC)
+                        has_ggo = True
+                        ggo_flag[-1] = True
+                    else:
+                        mask = np.full((img_rows, img_cols),
+                                       255, dtype=np.uint8)
+                        if label_smoothing != None:
+                            index = np.random.choice([False, True], (img_rows, img_cols), replace=True, p=[
+                                                     1 - label_smoothing, label_smoothing])
+                            mask[index] = 0
+                    counter += 1
+                    index = np.array(
+                        [p, str(counter), str(has_ggo), str(body_part)])
+                    imgs_unfiltered.append([img_pixel])
+                    masks_unfiltered.append([mask])
+                    indices_unfiltered.append(index)
+                    if ggo_aug > 1 and has_ggo:
+                        for i in range(ggo_aug):
+                            img_tf, mask_tf = random_transform(img_pixel, mask, 
+                                rotation_range=90, height_shift_range=0, width_shift_range=0, shear_range=1, zoom_range=(1,1), horizontal_flip=True, vertical_flip=True)
+                            counter += 1
+                            index = np.array(
+                                [p, str(counter), str(has_ggo), str(body_part)])
+                            imgs.append([img_tf])
+                            masks.append([mask_tf])
+                            indices.append(index)
+                    if counter % 1000 == 0:
+                        print 'Done: {0} images'.format(counter)
+            ix = clustering(imgs_unfiltered, ggo_flag).tolist()
+            imgs_filtered = [x for x, is_good in zip(imgs_unfiltered, ix) if is_good]
+            #print "before filtering:", len(imgs_unfiltered), "after filtering:", len(imgs_filtered) 
+            masks_filtered = [x for x, is_good in zip(masks_unfiltered, ix) if is_good]
+            indices_filtered = [x for x, is_good in zip(indices_unfiltered, ix) if is_good]
+            imgs = imgs + imgs_filtered
+            masks = masks + masks_filtered
+            indices = indices + indices_filtered
+        print 'Total number of images after filtering:', len(imgs)
+        if normalization:
+            m = np.mean(imgs).astype(np.float32)
+            imgs -= m
+            st = np.std(imgs).astype(np.float32)
+            imgs /= (st + 1e-6)
+            masks = np.asarray(masks)
+            masks /= 255
+            masks[masks < 0.5] = 0
+            masks[masks >= 0.5] = 1
+            masks.astype(int)
+        if whitening: 
+            remaining = imgs.shape[0]
+            idx = 0
+            while remaining > 100: 
+                plt.imshow(imgs[idx,0,:,:])
+                plt.gray()
+                plt.show()
+                imgs[idx:(idx+100),:,:,:] = zca_whitening(imgs[idx:(idx+100),:,:,:])
+                plt.imshow(imgs[idx,0,:,:])
+                plt.gray()
+                plt.show()
+                idx += 100
+                remaining -= 100
+            imgs[idx:,:,:,:] = zca_whitening(imgs[idx:,:,:,:])
+        imgs = np.array(imgs)
+        np.reshape(imgs, (len(imgs), 1, img_rows, img_cols))
+        masks = np.array(masks)
+        np.reshape(masks, (len(masks), 1, img_rows, img_cols))
+        indices = np.array(indices)
+        grp = f.create_group(img_dir)
+        dset = grp.create_dataset("imgs", data=imgs)
+        dset = grp.create_dataset("masks", data=masks)
+        dset = grp.create_dataset("indices", data=indices)
+    print 'Loading done.'
+    print 'Saving to h5py files done'
+    return imgs, masks, indices
+
+def random_transform(image, mask, rotation_range=90, height_shift_range=0, width_shift_range=0, shear_range=1, zoom_range=(2,2), horizontal_flip=True, vertical_flip=True):  
+    h, w = image.shape
+    x = np.expand_dims(image, axis=0)
+    y = np.expand_dims(mask, axis=0)
+    img_row_index = 1
+    img_col_index = 2
+
+    if rotation_range:
+        theta = np.pi / 180 * np.random.uniform(-rotation_range, rotation_range)
+    else:
+        theta = 0
+    rotation_matrix = np.array([[np.cos(theta), -np.sin(theta), 0],
+                                    [np.sin(theta), np.cos(theta), 0],
+                                    [0, 0, 1]])
+    if height_shift_range:
+        tx = np.random.uniform(-height_shift_range, height_shift_range) * x.shape[img_row_index]
+    else:
+        tx = 0
+
+    if width_shift_range:
+        ty = np.random.uniform(-width_shift_range, width_shift_range) * x.shape[img_col_index]
+    else:
+        ty = 0
+
+    translation_matrix = np.array([[1, 0, tx], [0, 1, ty], [0, 0, 1]])
+    if shear_range:
+        shear = np.random.uniform(-shear_range, shear_range)
+    else:
+        shear = 0
+    shear_matrix = np.array([[1, -np.sin(shear), 0], [0, np.cos(shear), 0], [0, 0, 1]])
+
+    if zoom_range[0] == 1 and zoom_range[1] == 1:
+        zx, zy = 1, 1
+    else: 
+        zx, zy = np.random.uniform(zoom_range[0], zoom_range[1], 2)
+    zoom_matrix = np.array([[zx, 0, 0], [0, zy, 0], [0, 0, 1]])
+
+    transform_matrix = np.dot(np.dot(np.dot(rotation_matrix, translation_matrix), shear_matrix), zoom_matrix)
+    transform_matrix = transform_matrix_offset_center(transform_matrix, h, w)
+    x = apply_transform(x, transform_matrix)
+    y = apply_transform(y, transform_matrix)
+    if horizontal_flip:
+        if np.random.random() < 0.5:
+            x = flip_axis(x, 2)
+            y = flip_axis(y, 2)
+    if vertical_flip:
+        if np.random.random() < 0.5:
+            x = flip_axis(x, 1)
+            y = flip_axis(y, 1)
+    return x[0,:,:], y[0,:,:]
+
+
+def transform_matrix_offset_center(matrix, x, y):
+    o_x = float(x) / 2 + 0.5
+    o_y = float(y) / 2 + 0.5
+    offset_matrix = np.array([[1, 0, o_x], [0, 1, o_y], [0, 0, 1]])
+    reset_matrix = np.array([[1, 0, -o_x], [0, 1, -o_y], [0, 0, 1]])
+    transform_matrix = np.dot(np.dot(offset_matrix, matrix), reset_matrix)
+    return transform_matrix
+
+
+def apply_transform(x, transform_matrix, channel_index=0, fill_mode='nearest', cval=0.):
+    x = np.rollaxis(x, channel_index, 0)
+    final_affine_matrix = transform_matrix[:2, :2]
+    final_offset = transform_matrix[:2, 2]
+    channel_images = [ndi.interpolation.affine_transform(x_channel, final_affine_matrix, 
+                      final_offset, order=0, mode=fill_mode, cval=cval) for x_channel in x]
+    x = np.stack(channel_images, axis=0)
+    x = np.rollaxis(x, 0, channel_index+1)
+    return x
+
+def flip_axis(x, axis):
+    x = np.asarray(x).swapaxes(axis, 0)
+    x = x[::-1, ...]
+    x = x.swapaxes(0, axis)
+    return x
+
+def zca_whitening(X): 
+    flatX = np.reshape(X, (X.shape[0], X.shape[1] * X.shape[2] * X.shape[3]))
+    sigma = np.dot(flatX.T, flatX) / flatX.shape[0]
+    U, S, V = linalg.svd(sigma)
+    principal_components = np.dot(np.dot(U, np.diag(1. / np.sqrt(S + 10e-7))), U.T)
+    XW = np.zeros(X.shape)
+    for i in range(X.shape[0]): 
+        x = X[i,:,:,:]
+        flatx = np.reshape(x, (x.size)) 
+        whitex = np.dot(flatx, principal_components)
+        XW[i,:,:,:] = np.reshape(whitex, (x.shape[0], x.shape[1], x.shape[2]))
+    return XW
+
+def clustering(imgs, ggo_flag): 
+    #print "image length:", len(imgs), "flag length:", len(ggo_flag)
+    ix = np.full((len(ggo_flag),), False, dtype=bool)
+    imgs = [np.asarray(x).flatten() for x in imgs]
+    imgs = np.asarray(imgs)
+    imgs = imgs.astype(np.float32)
+    m = np.mean(imgs).astype(np.float32)
+    imgs -= m
+    st = np.std(imgs).astype(np.float32)
+    imgs /= (st + 1e-6)
+    kmeans = KMeans(n_clusters=3, random_state=np.random.RandomState(0)).fit(imgs)
+    for i in range(3): 
+        if sum(kmeans.labels_[np.asarray(ggo_flag)] == i) > 0: 
+            ix[np.where(kmeans.labels_ == i)[0]] = True
+    ix[np.where(np.asarray(ggo_flag))] = True
+    return ix
+    '''
+    print "clusters:", sum(kmeans.labels_ == 0), sum(kmeans.labels_ == 1), sum(kmeans.labels_ == 2)
+    print "has_ggo", sum(ggo_flag)
+    print sum(kmeans.labels_[np.asarray(ggo_flag)] == 0), sum(kmeans.labels_[np.asarray(ggo_flag)] == 1), sum(kmeans.labels_[np.asarray(ggo_flag)] == 2)
+    plt.imshow(imgs[np.where(kmeans.labels_ == 0)[0][0],:].reshape(128,128))
+    plt.gray()
+    plt.show()
+    plt.imshow(imgs[np.where(kmeans.labels_ == 1)[0][0],:].reshape(128,128))
+    plt.gray()
+    plt.show()
+    plt.imshow(imgs[np.where(kmeans.labels_ == 2)[0][0],:].reshape(128,128))
+    plt.gray()
+    plt.show()
+    '''
 
 if __name__ == '__main__':
     args = parse_options()
@@ -416,7 +621,7 @@ if __name__ == '__main__':
     cropped_img_rows = data_config.get('cropped_img_rows', None)
     cropped_img_cols = data_config.get('cropped_img_cols', None)
 
-    ggo_aug = int(data_config.get('ggo_aug', 50))
+    ggo_aug = int(data_config.get('ggo_aug', 100))
 
     reduced_size = None
     if reduced_img_rows and reduced_img_cols:
@@ -426,7 +631,7 @@ if __name__ == '__main__':
     if cropped_img_rows and cropped_img_cols:
         reduced_size = [int(cropped_img_rows), int(cropped_img_cols)]
 
-    train_imgs, train_masks, train_index = create_data(
+    train_imgs, train_masks, train_index = create_data_2(
         args.input_dirs, args.output_file, original_size=[
-            img_rows, img_cols], normalization=True, reduced_size=reduced_size, ggo_aug=ggo_aug, crop=False,
+            img_rows, img_cols], normalization=True, whitening=False, reduced_size=reduced_size, ggo_aug=ggo_aug, crop=False,
         cropped_size=cropped_size)

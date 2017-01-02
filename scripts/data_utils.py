@@ -4,14 +4,14 @@ import h5py
 import numpy as np
 
 patient_group_dict = {}
-
+patient_file_dict = {}
 
 def list_all_patients(name, obj):
     if 'indices' in name:
         p_set = set(obj[:, 0])
         for p in p_set:
             patient_group_dict[p] = name[:-7]
-
+            patient_file_dict[p] = None
 
 def load_data_from_hdf5(file, patientID, patient_group_dict):
     f = h5py.File(file, 'r')
@@ -76,11 +76,22 @@ def test_data_generator(file, img_rows, img_cols, iter=1):
             train_val_data_generator(file, train_batch_size=1, val_batch_size=0, img_rows=img_rows, img_cols=img_cols, iter=iter):
         yield imgs, masks, index
 
-
-def train_val_generator(file, img_rows, img_cols, batch_size=100, train_size=1, val_size=1, train_or_val="both", iter=1000, shuffle=True):
-    f = h5py.File(file, 'r')
-    f.visititems(list_all_patients)
-    p_list = patient_group_dict.keys()
+def train_val_generator(file, img_rows, img_cols, batch_size = 100, train_size=1, val_size=1, train_or_val = "train", iter = 1000, shuffle = True):
+    if isinstance(file, list): 
+        for fn in file: 
+            f = h5py.File(fn, 'r')
+            f.visititems(list_all_patients)
+            for key, value in patient_file_dict.items(): 
+                if value is None: 
+                    patient_file_dict[key] = fn
+        p_list = patient_group_dict.keys()
+    else: 
+        f = h5py.File(file, 'r')
+        f.visititems(list_all_patients)
+        p_list = patient_group_dict.keys()
+        for key, value in patient_file_dict.items(): 
+                if value is None: 
+                    patient_file_dict[key] = file
     while True: 
         remaining = len(p_list)
         train_counter = 0
@@ -96,7 +107,7 @@ def train_val_generator(file, img_rows, img_cols, batch_size=100, train_size=1, 
             train_index = np.array([]).reshape((0, 4))
             for p in p_sublist:
                 imgs, masks, indices = load_data_from_hdf5(
-                    file, p, patient_group_dict)
+                    patient_file_dict[p], p, patient_group_dict)
                 train_imgs = np.vstack((train_imgs, imgs))
                 train_masks = np.vstack((train_masks, masks))
                 train_index = np.vstack((train_index, indices))
@@ -114,7 +125,7 @@ def train_val_generator(file, img_rows, img_cols, batch_size=100, train_size=1, 
                 imgs_len = 0
                 for p in p_sublist:
                     imgs, masks, indices = load_data_from_hdf5(
-                        file, p, patient_group_dict)
+                        patient_file_dict[p], p, patient_group_dict)
                     imgs_len += imgs.shape[0]
                     val_imgs = np.vstack((val_imgs, imgs))
                     val_masks = np.vstack((val_masks, masks))
@@ -150,6 +161,7 @@ def train_val_generator(file, img_rows, img_cols, batch_size=100, train_size=1, 
                     print " now yielding train batch", batch
                     batch += 1 
                     yield (train_img_batch, train_mask_batch)
+                    print train_img_batch.shape
             if train_or_val == "val": 
                 start_index = 0
                 end_index = start_index + batch_size
@@ -162,5 +174,7 @@ def train_val_generator(file, img_rows, img_cols, batch_size=100, train_size=1, 
                     print " now yielding val batch", batch
                     batch += 1 
                     yield (val_img_batch, val_mask_batch)
+    
+
 
 
