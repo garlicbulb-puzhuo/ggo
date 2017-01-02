@@ -52,10 +52,10 @@ def get_spark_model(model, model_name, model_id, train_config):
 
         def on_update_parameters(self, spark_model):
             self.current_worker_epoch += 1
-            logger.info("get update parameters from worker: %d" %
+            logger.info("get update parameters request from worker | aggregate epoch %d" %
                         self.current_worker_epoch)
             if self.current_worker_epoch % self.worker_epoch_updates == 0:
-                # update parent spark model's weights
+                # update spark model's internal master's weights
                 spark_model.update_weights()
 
                 # write parent spark model's weights
@@ -80,10 +80,10 @@ def get_spark_model(model, model_name, model_id, train_config):
 def get_standalone_model_callbacks(model_name, model_id, train_config):
     early_stop_min_delta = float(
         train_config.get('early_stop_min_delta', 1e-6))
-    # early_stop = EarlyStopping(monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
+    early_stop = EarlyStopping(monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
 
     model_checkpoint = ModelCheckpoint(
-        '%s.model%d.model_2.{epoch:02d}.hdf5' % (model_name, model_id), monitor='loss', save_best_only=False)
+        '%s.standalone.model%d.{epoch:02d}.hdf5' % (model_name, model_id), monitor='loss', save_best_only=False)
 
     standalone_loss_history_file = train_config.get('standalone_loss_history_file', 'standalone_loss_history_file')
 
@@ -120,7 +120,13 @@ def get_spark_model_callbacks(model_name, model_id, train_config):
     import os
     import socket
 
+    worker_epoch_updates = int(
+        train_config.get('worker_epoch_updates', 50))
+
     class PrintHistoryCallback(Callback):
+        def __init__(self):
+            self.worker_epoch_updates = worker_epoch_updates
+            self.current_worker_epoch = 0
 
         def on_epoch_end(self, epoch, logs={}):
             keys = logs.keys()
@@ -138,23 +144,29 @@ def get_spark_model_callbacks(model_name, model_id, train_config):
 
     class SparkWorkerModelCheckpoint(SparkWorkerCallback):
 
-        def __init__(self, filepath):
-            self.filepath = filepath
+        def __init__(self, model_filepath):
+            self.model_filepath = model_filepath
+            self.worker_epoch_updates = worker_epoch_updates
+            self.losses = []
+            self.val_losses = []
 
-        def on_epoch_end(self, epoch, model, history):
+        def on_epoch_end(self, epoch, iteration, model, history):
             print()
-            print("saving worker model for epoch %s" % epoch)
-            filepath = self.filepath.format(epoch=epoch, **history.history)
-            models.save_model(model, filepath)
+            if (epoch + 1) % self.worker_epoch_updates == 0:
+                print("saving worker model for epoch %s" % epoch)
+                model_filepath = self.model_filepath.format(epoch=epoch, iteration=iteration, **history.history)
+                models.save_model(model, model_filepath)
 
             keys = history.history.keys()
             values = history.history.values()
             keys.append('hostname')
             keys.append('pid')
             keys.append('epoch')
+            keys.append('iteration')
             values.append(socket.gethostname())
             values.append(os.getpid())
             values.append(epoch)
+            values.append(iteration)
 
             print()
             print("history and metadata keys: {0}".format(keys))
@@ -165,7 +177,7 @@ def get_spark_model_callbacks(model_name, model_id, train_config):
     print_history = PrintHistoryCallback()
     early_stop = EarlyStopping(
         monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
-    spark_worker_callback = SparkWorkerModelCheckpoint('%s.spark_model%d.model.{epoch:02d}-{loss:}-{val_loss:}.hdf5' % (model_name, model_id))
+    spark_worker_callback = SparkWorkerModelCheckpoint('%s.spark.model%d.{iteration:}.{epoch:02d}.hdf5' % (model_name, model_id))
 
     return [early_stop], [spark_worker_callback]
 
@@ -280,13 +292,11 @@ def train(train_imgs_path, train_mode, train_config):
                 continue
 
             rdd = to_simple_rdd(sc, train_imgs, train_masks)
-            spark_model.train(rdd, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose,
+            spark_model.train(rdd, iteration=iteration, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose,
                               validation_split=0.1, callbacks=model_callbacks, worker_callbacks=worker_callbacks)
 
             models.save_model(
-                model, '%s.model%d.model.batch%d.iteration%d.hdf5' % (model_name, model_id, train_batch_size, iteration))
-            model.save_weights(
-                '%s.model%d.weights.batch%d.iteration%d.hdf5' % (model_name, model_id, train_batch_size, iteration))
+                model, '%s.spark.model%d.batch%d.iteration%d.hdf5' % (model_name, model_id, train_batch_size, iteration))
             iteration += 1
 
     print('-' * 30)
