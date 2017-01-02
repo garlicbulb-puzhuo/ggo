@@ -83,7 +83,7 @@ def get_standalone_model_callbacks(model_name, model_id, train_config):
     early_stop = EarlyStopping(monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
 
     model_checkpoint = ModelCheckpoint(
-        '%s.model%d.model_2.{epoch:02d}.hdf5' % (model_name, model_id), monitor='loss', save_best_only=False)
+        '%s.model%d.{epoch:02d}.hdf5' % (model_name, model_id), monitor='loss', save_best_only=False)
 
     standalone_loss_history_file = train_config.get('standalone_loss_history_file', 'standalone_loss_history_file')
 
