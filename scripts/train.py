@@ -36,6 +36,7 @@ def get_spark_model(model, model_name, model_id, train_config):
     from elephas import optimizers as elephas_optimizers
     from pyspark import SparkContext, SparkConf
     from elephas.spark_model import ModelCallback
+    from optimizer import adam
 
     master_server_port = int(train_config.get('master_server_port', 5000))
     worker_epoch_updates = int(
@@ -68,10 +69,10 @@ def get_spark_model(model, model_name, model_id, train_config):
 
     conf = SparkConf().setAppName('Spark_Backend')
     sc = SparkContext(conf=conf)
-    adam = elephas_optimizers.Adam(clipnorm=1.0)
+    driver_adam = elephas_optimizers.Adam(clipnorm=1.0)
 
-    spark_model = SparkModel(sc, model, optimizer=adam, frequency='epoch',
-                             mode='asynchronous', num_workers=4, master_loss=custom_loss, master_server_port=master_server_port,
+    spark_model = SparkModel(sc, model, optimizer=driver_adam, frequency='epoch',
+                             mode='asynchronous', num_workers=4, master_optimizer=adam, master_loss=custom_loss, master_server_port=master_server_port,
                              model_callbacks=[spark_model_callback])
 
     return sc, spark_model
