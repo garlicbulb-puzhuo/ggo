@@ -151,10 +151,18 @@ def get_spark_model_callbacks(model_name, model_id, train_config):
             self.losses = []
             self.val_losses = []
 
+        def on_epoch_start(self, epoch, iteration, model):
+            print()
+            if epoch == 0:
+                print("saving worker model at the start of each iteration: epoch %s" % epoch)
+                model_filepath = self.model_filepath.format(epoch=epoch, iteration=iteration)
+                models.save_model(model, model_filepath)
+
         def on_epoch_end(self, epoch, iteration, model, history):
             print()
-            if (epoch + 1) % self.worker_epoch_updates == 0:
-                print("saving worker model for epoch %s" % epoch)
+            epoch += 1
+            if epoch % self.worker_epoch_updates == 0:
+                print("saving worker model: epoch %s" % epoch)
                 model_filepath = self.model_filepath.format(epoch=epoch, iteration=iteration, **history.history)
                 models.save_model(model, model_filepath)
 
@@ -301,9 +309,7 @@ def train(train_imgs_path, train_mode, train_config):
             iteration += 1
 
     print('-' * 30)
-    print('Loading and preprocessing test data...')
-    print('-' * 30)
-    print('Loading saved weights...')
+    print('Training done')
     print('-' * 30)
 
 
