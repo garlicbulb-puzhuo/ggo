@@ -81,14 +81,17 @@ def get_spark_model(model, model_name, model_id, train_config):
 def get_standalone_model_callbacks(model_name, model_id, train_config):
     early_stop_min_delta = float(
         train_config.get('early_stop_min_delta', 1e-6))
-    early_stop = EarlyStopping(monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
+    early_stop = EarlyStopping(
+        monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
 
     model_checkpoint = ModelCheckpoint(
         '%s.standalone.model%d.{epoch:02d}.hdf5' % (model_name, model_id), monitor='loss', save_best_only=False)
 
-    standalone_loss_history_file = train_config.get('standalone_loss_history_file', 'standalone_loss_history_file')
+    standalone_loss_history_file = train_config.get(
+        'standalone_loss_history_file', 'standalone_loss_history_file')
 
     class LossHistory(Callback):
+
         def __init__(self, filename):
             self.file = filename
             self.losses = []
@@ -109,6 +112,7 @@ def get_standalone_model_callbacks(model_name, model_id, train_config):
     print_history = LossHistory(standalone_loss_history_file)
 
     class PrintBatch(Callback):
+
         def on_batch_end(self, epoch, logs={}):
             print(logs)
 
@@ -125,6 +129,7 @@ def get_spark_model_callbacks(model_name, model_id, train_config):
         train_config.get('worker_epoch_updates', 50))
 
     class PrintHistoryCallback(Callback):
+
         def __init__(self):
             self.worker_epoch_updates = worker_epoch_updates
             self.current_worker_epoch = 0
@@ -154,8 +159,10 @@ def get_spark_model_callbacks(model_name, model_id, train_config):
         def on_epoch_start(self, epoch, iteration, model):
             print()
             if epoch == 0:
-                print("saving worker model at the start of each iteration: epoch %s" % epoch)
-                model_filepath = self.model_filepath.format(epoch=epoch, iteration=iteration)
+                print(
+                    "saving worker model at the start of each iteration: epoch %s" % epoch)
+                model_filepath = self.model_filepath.format(
+                    epoch=epoch, iteration=iteration)
                 models.save_model(model, model_filepath)
 
         def on_epoch_end(self, epoch, iteration, model, history):
@@ -163,7 +170,8 @@ def get_spark_model_callbacks(model_name, model_id, train_config):
             epoch += 1
             if epoch % self.worker_epoch_updates == 0:
                 print("saving worker model: epoch %s" % epoch)
-                model_filepath = self.model_filepath.format(epoch=epoch, iteration=iteration, **history.history)
+                model_filepath = self.model_filepath.format(
+                    epoch=epoch, iteration=iteration, **history.history)
                 models.save_model(model, model_filepath)
 
             keys = history.history.keys()
@@ -186,7 +194,8 @@ def get_spark_model_callbacks(model_name, model_id, train_config):
     print_history = PrintHistoryCallback()
     early_stop = EarlyStopping(
         monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
-    spark_worker_callback = SparkWorkerModelCheckpoint('%s.spark.model%d.{iteration:}.{epoch:02d}.hdf5' % (model_name, model_id))
+    spark_worker_callback = SparkWorkerModelCheckpoint(
+        '%s.spark.model%d.{iteration:}.{epoch:02d}.hdf5' % (model_name, model_id))
 
     return [early_stop], [spark_worker_callback]
 
@@ -266,7 +275,6 @@ def train(train_imgs_path, train_mode, train_config):
             model_name=model_name, model_id=model_id, train_config=train_config)
 
     verbose = 1
-    iteration = 1
 
     print('-' * 30)
     print('Fitting model...')
@@ -280,33 +288,53 @@ def train(train_imgs_path, train_mode, train_config):
             validation_data=train_val_generator(file=train_imgs_path, batch_size=batch_size, train_size=train_batch_size,
                                                 val_size=val_batch_size, img_rows=img_rows, img_cols=img_cols, iter=data_gen_iteration, train_or_val="val"),
             nb_val_samples=nb_val_samples)
-    else:
+    elif train_mode == 'spark':
         # transfer model weights
         transfer, last_iteration = transfer_existing_model()
-        for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index in \
-            train_val_data_generator(file=train_imgs_path, train_batch_size=train_batch_size, val_batch_size=val_batch_size, img_rows=img_rows,
-                                     img_cols=img_cols, iter=data_gen_iteration):
+        import os
+
+        # get the list of hdf5 files
+        if os.path.isdir(train_imgs_path):
+            files = os.listdir(train_imgs_path)
+            rdd = sc.parallelize(files)
+
+            # train data via spark
             print('-' * 30)
-            print('Loading and preprocessing train data for iteration %d...' % iteration)
+            print('Loading and preprocessing train data...')
             print('-' * 30)
 
-            logger.info(train_imgs.shape)
-
-            from elephas.utils.rdd_utils import to_simple_rdd
-
-            if transfer and iteration <= last_iteration:
-                logger.info('The current iteration is %d and less than or equal to the configured start iteration %d. Skip current iteration.' % (
-                    iteration, last_iteration))
-                iteration += 1
-                continue
-
-            rdd = to_simple_rdd(sc, train_imgs, train_masks)
-            spark_model.train(rdd, iteration=iteration, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose,
-                              validation_split=0.1, callbacks=model_callbacks, worker_callbacks=worker_callbacks)
-
+            spark_model.train(rdd, iteration=0, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose,
+                              validation_split=0.1, callbacks=model_callbacks, worker_callbacks=worker_callbacks,
+                              spark_worker_class='scripts.spark.spark_utils.CustomSparkWorker', spark_worker_config=train_config)
             models.save_model(
-                model, '%s.spark.model%d.batch%d.iteration%d.hdf5' % (model_name, model_id, train_batch_size, iteration))
-            iteration += 1
+                model, '%s.spark.model%d.batch%d.hdf5' % (model_name, model_id, train_batch_size))
+        else:
+            iteration = 1
+            for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index in \
+                    train_val_data_generator(file=train_imgs_path, train_batch_size=train_batch_size, val_batch_size=val_batch_size, img_rows=img_rows,
+                                             img_cols=img_cols, iter=data_gen_iteration):
+                print('-' * 30)
+                print(
+                    'Loading and preprocessing train data for iteration %d...' % iteration)
+                print('-' * 30)
+
+                logger.info(train_imgs.shape)
+
+                from elephas.utils.rdd_utils import to_simple_rdd
+
+                if transfer and iteration <= last_iteration:
+                    logger.info('The current iteration is %d and less than or equal to the configured start iteration %d. Skip current iteration.' % (
+                        iteration, last_iteration))
+                    iteration += 1
+                    continue
+
+                rdd = to_simple_rdd(sc, train_imgs, train_masks)
+                spark_model.train(rdd, iteration=iteration, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose,
+                                  validation_split=0.1, callbacks=model_callbacks, worker_callbacks=worker_callbacks)
+
+                models.save_model(
+                    model, '%s.spark.model%d.batch%d.iteration%d.hdf5' % (model_name, model_id, train_batch_size, iteration))
+                iteration += 1
 
     print('-' * 30)
     print('Training done')
