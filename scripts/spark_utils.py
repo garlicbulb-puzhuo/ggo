@@ -15,6 +15,15 @@ from keras.models import model_from_yaml
 
 from data_utils import train_val_generator
 
+import logging
+import sys
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+# match images and masks
+logging_handler_out = logging.StreamHandler(sys.stdout)
+logger.addHandler(logging_handler_out)
+
 
 class CustomSparkWorker(object):
     '''
@@ -69,11 +78,14 @@ class CustomSparkWorker(object):
                 self.train_config['nb_epoch'] = 1
                 x_train, y_train = data_generator.next()
 
+                logger.info("start epoch {0}".format(epoch))
+
                 if self.worker_callbacks:
                     for worker_callback in self.worker_callbacks:
                         worker_callback.on_epoch_start(
                             epoch=epoch, iteration=self.iteration, model=model)
 
+                logger.info("train on the data set of {0} images".format(x_train.shape[0]))
                 if x_train.shape[0] > batch_size:
                     history = model.fit(
                         x_train, y_train, callbacks=self.callbacks, **self.train_config)
