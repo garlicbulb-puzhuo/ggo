@@ -291,11 +291,12 @@ def train(train_imgs_path, train_mode, train_config):
     elif train_mode == 'spark':
         # transfer model weights
         transfer, last_iteration = transfer_existing_model()
+        from utils import listdir_fullpath
         import os
 
         # get the list of hdf5 files
         if os.path.isdir(train_imgs_path):
-            files = os.listdir(train_imgs_path)
+            files = listdir_fullpath(train_imgs_path)
             rdd = sc.parallelize(files)
 
             # train data via spark
