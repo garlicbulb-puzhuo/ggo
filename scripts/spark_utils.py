@@ -15,15 +15,6 @@ from keras.models import model_from_yaml
 
 from data_utils import train_val_generator
 
-import logging
-import sys
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-
-# match images and masks
-logging_handler_out = logging.StreamHandler(sys.stdout)
-logger.addHandler(logging_handler_out)
-
 
 class CustomSparkWorker(object):
     '''
@@ -50,6 +41,13 @@ class CustomSparkWorker(object):
         Train a keras model on a worker and send asynchronous updates
         to parameter server
         '''
+        import logging
+        import sys
+        logger = logging.getLogger()
+        logger.setLevel(logging.INFO)
+
+        logging_handler_out = logging.StreamHandler(sys.stdout)
+        logger.addHandler(logging_handler_out)
         files = list(data_iterator)
 
         model = model_from_yaml(self.yaml, self.custom_objects)
