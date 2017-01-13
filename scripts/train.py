@@ -305,7 +305,7 @@ def train(train_imgs_path, train_mode, train_config):
 
             spark_model.train(rdd, iteration=0, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose,
                               validation_split=0.1, callbacks=model_callbacks, worker_callbacks=worker_callbacks,
-                              spark_worker_class='spark.spark_utils.CustomSparkWorker', spark_worker_config=train_config)
+                              spark_worker_class='spark_utils.CustomSparkWorker', spark_worker_config=train_config)
             models.save_model(
                 model, '%s.spark.model%d.batch%d.hdf5' % (model_name, model_id, train_batch_size))
         else:
