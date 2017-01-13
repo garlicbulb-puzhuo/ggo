@@ -1,13 +1,6 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import numpy as np
-from itertools import tee
-import socket
-from multiprocessing import Process
-import six.moves.cPickle as pickle
-from flask import Flask, request
-
 try:
     import urllib.request as urllib2
 except ImportError:
@@ -20,7 +13,7 @@ from elephas.spark_model import put_deltas_to_server
 
 from keras.models import model_from_yaml
 
-from ..data_utils import train_val_generator
+from data_utils import train_val_generator
 
 
 class CustomSparkWorker(object):
