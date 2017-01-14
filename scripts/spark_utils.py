@@ -50,6 +50,8 @@ class CustomSparkWorker(object):
         logger.addHandler(logging_handler_out)
         files = list(data_iterator)
 
+        logger.info("start worker on files: {0}".format(','.join(files)))
+
         model = model_from_yaml(self.yaml, self.custom_objects)
         model.compile(optimizer=self.master_optimizer,
                       loss=self.master_loss, metrics=self.master_metrics)
@@ -83,7 +85,7 @@ class CustomSparkWorker(object):
                         worker_callback.on_epoch_start(
                             epoch=epoch, iteration=self.iteration, model=model)
 
-                logger.info("train on the data set of {0} images".format(x_train.shape[0]))
+                logger.info("data set of {0} images".format(x_train.shape[0]))
                 if x_train.shape[0] > batch_size:
                     history = model.fit(
                         x_train, y_train, callbacks=self.callbacks, **self.train_config)
