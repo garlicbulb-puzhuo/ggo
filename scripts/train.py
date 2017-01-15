@@ -303,6 +303,7 @@ def train(train_imgs_path, train_mode, train_config):
         if os.path.isdir(train_imgs_path):
             files = listdir_fullpath(train_imgs_path)
             rdd = sc.parallelize(files)
+            rdd.repartition(rdd.getNumPartitions())
 
             # train data via spark
             print('-' * 30)
