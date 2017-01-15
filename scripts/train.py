@@ -61,9 +61,9 @@ def get_spark_model(model, model_name, model_id, train_config):
 
                 # write parent spark model's weights
                 logger.info(
-                    'write intermediate weights for model %s %d' % (model_name, model_id))
-                spark_model.master_network.save_weights(
-                    '%s.model%d.weights.batch%d.intermediate.hdf5' % (model_name, model_id, train_batch_size))
+                    'save intermediate model for model %s %d' % (model_name, model_id))
+                spark_model.master_network.save_model(
+                    '%s.spark.model%d.acc_epoch%d.intermediate.hdf5' % (model_name, model_id, self.current_worker_epoch))
 
     spark_model_callback = SparkModelCheckPoint()
 
@@ -313,7 +313,7 @@ def train(train_imgs_path, train_mode, train_config):
                               validation_split=0.1, callbacks=model_callbacks, worker_callbacks=worker_callbacks,
                               spark_worker_class='spark_utils.CustomSparkWorker', spark_worker_config=train_config)
             models.save_model(
-                model, '%s.spark.model%d.batch%d.hdf5' % (model_name, model_id, train_batch_size))
+                model, '%s.spark.model%d.hdf5' % (model_name, model_id))
         else:
             iteration = 1
             for train_imgs, train_masks, train_index, val_imgs, val_masks, val_index in \
