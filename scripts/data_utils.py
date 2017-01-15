@@ -92,7 +92,8 @@ def test_data_generator(file, img_rows, img_cols, iter=1):
         yield imgs, masks, index
 
 
-def train_val_generator(file, img_rows, img_cols, batch_size=100, train_size=1, val_size=1, train_or_val="train", iter=1000, shuffle=True):
+def train_val_generator(file, img_rows, img_cols, batch_size=100, train_size=1, val_size=1, train_or_val="train", iter=1000, shuffle=True,
+                        accept_partial_batch=False):
     if isinstance(file, list):
         for fn in file:
             f = h5py.File(fn, 'r')
@@ -156,9 +157,9 @@ def train_val_generator(file, img_rows, img_cols, batch_size=100, train_size=1, 
             train_counter = train_counter + train_size + val_size
             remaining -= train_size + val_size
             if train_or_val == 'train':
-                print " Now at train Iteration", counter
+                print "train at iteration {0} with train batch size {1}".format(counter, train_size)
             if train_or_val == 'val':
-                print " Now at val Iteration", counter
+                print "val at iteration {0} with val batch size {1}".format(counter, val_size)
             counter += 1
 
             train_img_size = train_imgs.shape[0]
@@ -169,26 +170,25 @@ def train_val_generator(file, img_rows, img_cols, batch_size=100, train_size=1, 
                 start_index = 0
                 end_index = start_index + batch_size
                 batch = 0
-                while end_index <= train_img_size:
+                while (accept_partial_batch and start_index < train_img_size) or end_index <= train_img_size:
                     train_img_batch = train_imgs[
-                        start_index:end_index, :, :, :]
+                                      start_index:end_index, :, :, :]
                     train_mask_batch = train_masks[
-                        start_index:end_index, :, :, :]
+                                       start_index:end_index, :, :, :]
                     start_index = end_index
                     end_index = start_index + batch_size
-                    print " now yielding train batch", batch
+                    print "now yielding train batch {0} of shape {1}".format(batch, train_img_batch.shape)
                     batch += 1
                     yield (train_img_batch, train_mask_batch)
-                    print train_img_batch.shape
             if train_or_val == "val":
                 start_index = 0
                 end_index = start_index + batch_size
                 batch = 0
-                while end_index <= val_img_size and val_img_size > 0:
+                while start_index < val_img_size or end_index <= val_img_size and val_img_size > 0:
                     val_img_batch = val_imgs[start_index:end_index, :, :, :]
                     val_mask_batch = val_masks[start_index:end_index, :, :, :]
                     start_index = end_index
                     end_index = start_index + batch_size
-                    print " now yielding val batch", batch
+                    print "now yielding train batch {0} of shape {1}".format(batch, val_img_batch.shape)
                     batch += 1
                     yield (val_img_batch, val_mask_batch)
