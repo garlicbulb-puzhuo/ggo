@@ -156,14 +156,16 @@ def train_val_generator(file, img_rows, img_cols, batch_size=100, train_size=1, 
                     val_index = val_index[ix, :]
             train_counter = train_counter + train_size + val_size
             remaining -= train_size + val_size
-            if train_or_val == 'train':
-                print "train at iteration {0} with train batch size {1}".format(counter, train_size)
-            if train_or_val == 'val':
-                print "val at iteration {0} with val batch size {1}".format(counter, val_size)
-            counter += 1
 
             train_img_size = train_imgs.shape[0]
             val_img_size = val_imgs.shape[0]
+            if train_or_val == 'train':
+                print "train data: iteration {0}, batch size {1}, images {2}".format(counter, train_size, train_img_size)
+            if train_or_val == 'val':
+                print "val data: iteration {0}, batch size {1}, images {2}".format(counter, val_size, val_img_size)
+            counter += 1
+
+
             if train_or_val == "both":
                 yield train_imgs, train_masks, train_index, val_imgs, val_masks, val_index
             if train_or_val == "train":
