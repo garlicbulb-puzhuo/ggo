@@ -281,6 +281,11 @@ def train(train_imgs_path, train_mode, train_config):
     print('-' * 30)
 
     if train_mode == 'standalone':
+        from utils import listdir_fullpath
+        import os
+        if os.path.isdir(train_imgs_path):
+            train_imgs_path = listdir_fullpath(train_imgs_path)
+
         model.fit_generator(
             generator=train_val_generator(file=train_imgs_path, batch_size=batch_size, train_size=train_batch_size, val_size=val_batch_size, img_rows=img_rows,
                                           img_cols=img_cols, iter=data_gen_iteration, train_or_val="train"),
