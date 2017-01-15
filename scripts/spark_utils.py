@@ -70,7 +70,7 @@ class CustomSparkWorker(object):
 
         if self.frequency == 'epoch':
             data_generator = train_val_generator(file=files, batch_size=samples_per_epoch, train_size=train_batch_size, val_size=0, img_rows=img_rows,
-                                                 img_cols=img_cols, iter=data_gen_iteration, train_or_val="train")
+                                                 img_cols=img_cols, iter=data_gen_iteration, train_or_val="train", accept_partial_batch=True)
 
             for epoch in range(nb_epoch):
                 weights_before_training = get_server_weights(self.master_url)
