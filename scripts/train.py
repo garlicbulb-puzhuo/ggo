@@ -62,8 +62,8 @@ def get_spark_model(model, model_name, model_id, train_config):
                 # write parent spark model's weights
                 logger.info(
                     'save intermediate model for model %s %d' % (model_name, model_id))
-                spark_model.master_network.save_model(
-                    '%s.spark.model%d.acc_epoch%d.intermediate.hdf5' % (model_name, model_id, self.current_worker_epoch))
+                models.save_model(spark_model.master_network,
+                                  '%s.spark.model%d.acc_epoch%d.intermediate.hdf5' % (model_name, model_id, self.current_worker_epoch))
 
     spark_model_callback = SparkModelCheckPoint()
 
