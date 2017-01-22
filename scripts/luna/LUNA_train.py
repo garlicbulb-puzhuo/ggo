@@ -180,6 +180,12 @@ if __name__ == '__main__':
 
     print(args)
 
+    if not args.config_file:
+        parser.error('Required to set --config_file')
+
+    if not args.working_path:
+        parser.error('Required to set --working_path')
+
     config = ConfigParser.ConfigParser()
     config.read(args.config_file)
     data_config = dict(config.items('config'))
