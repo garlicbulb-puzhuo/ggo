@@ -18,10 +18,10 @@ import ConfigParser
 import argparse
 import sys
 import scipy.ndimage as ndi
-from data_utils import train_val_data_generator, test_data_generator
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from scipy import linalg
 from sklearn.cluster import KMeans
+import shutil
 
 
 logger = logging.getLogger()
@@ -361,7 +361,33 @@ def parse_options():
 
     return parser.parse_args()
 
-def create_data_2(src_dirs, des_file, original_size, normalization=True, whitening=False, reduced_size=None, ggo_aug=100, crop=False, cropped_size=None, label_smoothing=1e-4):
+
+def normalize_data(imgs, masks):
+    m = np.mean(imgs).astype(np.float32)
+    imgs -= m
+    st = np.std(imgs).astype(np.float32)
+    imgs /= (st + 1e-6)
+    masks = np.asarray(masks)
+    masks /= 255
+    masks[masks < 0.5] = 0
+    masks[masks >= 0.5] = 1
+    masks.astype(int)
+    return imgs, masks
+
+
+def white_data(imgs):
+    remaining = imgs.shape[0]
+    idx = 0
+    while remaining > 100:
+        imgs[idx:(idx + 100), :, :, :] = zca_whitening(imgs[idx:(idx + 100), :, :, :])
+        idx += 100
+        remaining -= 100
+    imgs[idx:, :, :, :] = zca_whitening(imgs[idx:, :, :, :])
+    return imgs
+
+
+def create_data_2(src_dirs, des_file, original_size, normalization=True, whitening=False, reduced_size=None, ggo_aug=100, crop=False, cropped_size=None,
+                  label_smoothing=1e-4, write_file_per_patient=False):
     if crop and cropped_size:
         img_rows = int(cropped_size[0])
         img_cols = int(cropped_size[1])
@@ -371,7 +397,14 @@ def create_data_2(src_dirs, des_file, original_size, normalization=True, whiteni
     else:
         img_rows = int(original_size[0])
         img_cols = int(original_size[1])
+
     f = h5py.File(des_file, "w")
+    dest_dir_path = os.path.join(os.path.dirname(os.path.realpath(des_file)), "patients")
+    if write_file_per_patient:
+        if os.path.exists(dest_dir_path):
+            shutil.rmtree(dest_dir_path, ignore_errors=True)
+        os.mkdir(dest_dir_path)
+
     for img_dir in src_dirs:
         imgs = []
         masks = []
@@ -384,6 +417,9 @@ def create_data_2(src_dirs, des_file, original_size, normalization=True, whiteni
             imgs_unfiltered = []
             masks_unfiltered = []
             indices_unfiltered = []
+            imgs_filtered = []
+            masks_filtered = []
+            indices_filtered = []
             for s in img_dict[p]['img_series'].keys():
                 for img_path, mask_path in zip(img_dict[p]['img_series'][s]['imgs'], img_dict[p]['img_series'][s]['masks']):
                     try:
@@ -428,54 +464,43 @@ def create_data_2(src_dirs, des_file, original_size, normalization=True, whiteni
                     indices_unfiltered.append(index)
                     if ggo_aug > 1 and has_ggo:
                         for i in range(ggo_aug):
-                            img_tf, mask_tf = random_transform(img_pixel, mask, 
-                                rotation_range=90, height_shift_range=0, width_shift_range=0, shear_range=1, zoom_range=(1,1), horizontal_flip=True, vertical_flip=True)
+                            img_tf, mask_tf = random_transform(img_pixel, mask, rotation_range=90, height_shift_range=0, width_shift_range=0, shear_range=1,
+                                                               zoom_range=(1, 1), horizontal_flip=True, vertical_flip=True)
                             counter += 1
                             index = np.array(
                                 [p, str(counter), str(has_ggo), str(body_part)])
-                            imgs.append([img_tf])
-                            masks.append([mask_tf])
-                            indices.append(index)
+                            imgs_filtered.append([img_tf])
+                            masks_filtered.append([mask_tf])
+                            indices_filtered.append(index)
                     if counter % 1000 == 0:
                         print 'Done: {0} images'.format(counter)
             ix = clustering(imgs_unfiltered, ggo_flag).tolist()
-            imgs_filtered = [x for x, is_good in zip(imgs_unfiltered, ix) if is_good]
-            #print "before filtering:", len(imgs_unfiltered), "after filtering:", len(imgs_filtered) 
-            masks_filtered = [x for x, is_good in zip(masks_unfiltered, ix) if is_good]
-            indices_filtered = [x for x, is_good in zip(indices_unfiltered, ix) if is_good]
+            imgs_filtered = imgs_filtered + [x for x, is_good in zip(imgs_unfiltered, ix) if is_good]
+            # print "before filtering:", len(imgs_unfiltered), "after filtering:", len(imgs_filtered)
+            masks_filtered = masks_filtered + [x for x, is_good in zip(masks_unfiltered, ix) if is_good]
+            indices_filtered = indices_filtered + [x for x, is_good in zip(indices_unfiltered, ix) if is_good]
+
+            if write_file_per_patient:
+                patient_target_file = os.path.join(dest_dir_path, "{0}_{1}.hdf5".format(p, img_rows))
+                write_data_file(target_file=patient_target_file, group_name=p, imgs=imgs_filtered, masks=masks_filtered, indices=indices_filtered,
+                                img_rows=img_rows, img_cols=img_cols, normalization=normalization, whitening=whitening)
+
             imgs = imgs + imgs_filtered
             masks = masks + masks_filtered
             indices = indices + indices_filtered
+
         print 'Total number of images after filtering:', len(imgs)
         if normalization:
-            m = np.mean(imgs).astype(np.float32)
-            imgs -= m
-            st = np.std(imgs).astype(np.float32)
-            imgs /= (st + 1e-6)
-            masks = np.asarray(masks)
-            masks /= 255
-            masks[masks < 0.5] = 0
-            masks[masks >= 0.5] = 1
-            masks.astype(int)
-        if whitening: 
-            remaining = imgs.shape[0]
-            idx = 0
-            while remaining > 100: 
-                plt.imshow(imgs[idx,0,:,:])
-                plt.gray()
-                plt.show()
-                imgs[idx:(idx+100),:,:,:] = zca_whitening(imgs[idx:(idx+100),:,:,:])
-                plt.imshow(imgs[idx,0,:,:])
-                plt.gray()
-                plt.show()
-                idx += 100
-                remaining -= 100
-            imgs[idx:,:,:,:] = zca_whitening(imgs[idx:,:,:,:])
+            imgs, masks = normalize_data(imgs=imgs, masks=masks)
+        if whitening:
+            imgs = white_data(imgs=imgs)
         imgs = np.array(imgs)
         np.reshape(imgs, (len(imgs), 1, img_rows, img_cols))
         masks = np.array(masks)
         np.reshape(masks, (len(masks), 1, img_rows, img_cols))
         indices = np.array(indices)
+
+        # write data to the file
         grp = f.create_group(img_dir)
         dset = grp.create_dataset("imgs", data=imgs)
         dset = grp.create_dataset("masks", data=masks)
@@ -483,6 +508,25 @@ def create_data_2(src_dirs, des_file, original_size, normalization=True, whiteni
     print 'Loading done.'
     print 'Saving to h5py files done'
     return imgs, masks, indices
+
+
+def write_data_file(target_file, group_name, imgs, masks, indices, img_rows, img_cols, normalization=True, whitening=True):
+    if normalization:
+        imgs, masks = normalize_data(imgs=imgs, masks=masks)
+    if whitening:
+        imgs = white_data(imgs=imgs)
+    imgs = np.array(imgs)
+    np.reshape(imgs, (len(imgs), 1, img_rows, img_cols))
+    masks = np.array(masks)
+    np.reshape(masks, (len(masks), 1, img_rows, img_cols))
+    indices = np.array(indices)
+
+    hdf5_file = h5py.File(target_file, "w")
+    grp = hdf5_file.create_group(group_name)
+    grp.create_dataset("imgs", data=imgs)
+    grp.create_dataset("masks", data=masks)
+    grp.create_dataset("indices", data=indices)
+
 
 def random_transform(image, mask, rotation_range=90, height_shift_range=0, width_shift_range=0, shear_range=1, zoom_range=(2,2), horizontal_flip=True, vertical_flip=True):  
     h, w = image.shape
@@ -634,4 +678,4 @@ if __name__ == '__main__':
     train_imgs, train_masks, train_index = create_data_2(
         args.input_dirs, args.output_file, original_size=[
             img_rows, img_cols], normalization=True, whitening=False, reduced_size=reduced_size, ggo_aug=ggo_aug, crop=False,
-        cropped_size=cropped_size)
+        cropped_size=cropped_size, write_file_per_patient=True)
