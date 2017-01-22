@@ -104,18 +104,18 @@ def train_and_predict(use_existing, working_path, train_config):
     validation_split = float(train_config.get('validation_split', 0.2))
 
     if model_id == 1:
-        from model_1 import get_model
+        from ..model_1 import get_model
 
     if model_id == 2:
-        from model_2 import get_model
+        from ..model_2 import get_model
 
     if model_id == 3:
-        from model_3 import get_model
+        from ..model_3 import get_model
 
     if model_id == 4:
         import sys
         sys.setrecursionlimit(1000000)
-        from model_4 import get_model
+        from ..model_4 import get_model
 
     input_shape = (1, img_rows, img_cols)
     model, model_name = get_model(input_shape)
