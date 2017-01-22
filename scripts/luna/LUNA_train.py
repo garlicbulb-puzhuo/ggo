@@ -119,8 +119,7 @@ def train_and_predict(use_existing, working_path, train_config):
 
     input_shape = (1, img_rows, img_cols)
     model, model_name = get_model(input_shape)
-    model = get_model(input_shape)
-    model_callbacks = get_standalone_model_callbacks(model_name=model_name, model_id=model_id, data_config=train_config)
+    model_callbacks = get_standalone_model_callbacks(model_name=model_name, model_id=model_id, train_config=train_config)
 
     # Saving weights to unet.hdf5 at checkpoints
     # model_checkpoint = ModelCheckpoint('unet.hdf5', monitor='loss', save_best_only=True)
