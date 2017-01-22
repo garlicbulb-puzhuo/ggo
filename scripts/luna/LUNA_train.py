@@ -173,6 +173,7 @@ def get_parser():
                         help='working directory containing numpy formatted images and masks in the training set')
     parser.add_argument('--config_file', metavar='config_file', nargs='?',
                         help='config file for your training and prediction')
+    return parser
 
 if __name__ == '__main__':
     parser = get_parser()
