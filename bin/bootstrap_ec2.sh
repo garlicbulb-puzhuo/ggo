@@ -14,8 +14,8 @@ function abort {
 
 function install_s3 {
     # Reference doc: https://fullstacknotes.com/mount-aws-s3-bucket-to-ubuntu-file-system/
-    sudo apt-get install build-essential git libfuse-dev libcurl4-openssl-dev libxml2-dev mime-support automake libtool
-    sudo apt-get install pkg-config libssl-dev
+    sudo apt-get install -y build-essential git libfuse-dev libcurl4-openssl-dev libxml2-dev mime-support automake libtool
+    sudo apt-get install -y pkg-config libssl-dev
     cd ~/Developer/
     git clone https://github.com/s3fs-fuse/s3fs-fuse
     cd s3fs-fuse/
