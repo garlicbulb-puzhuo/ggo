@@ -46,7 +46,7 @@ else
     install_s3
 fi
 
-if grep -qs '~/mnt/s3' /proc/mounts; then
+if grep -qs '/home/ubuntu/mnt/s3' /proc/mounts; then
     echo "s3 is mounted."
 else
     echo "s3 is not mounted. Mount s3..."
