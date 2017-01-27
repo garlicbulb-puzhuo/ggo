@@ -4,6 +4,9 @@
 set -e
 set -o pipefail
 
+# constants
+rm_cmd=/bin/rm
+
 # curret program name
 progname="$(basename "$(test -L "$0" && readlink "$0" || echo "$0")")"
 
@@ -26,19 +29,20 @@ function install_s3 {
 }
 
 function mount_s3 {
-    mkdir /tmp/cache
+    ${rm_cmd} -rf ${working_dir}
+    mkdir -p /tmp/cache
     chmod 777 /tmp/cache
     mkdir -p ~/mnt/s3
-    s3fs -o use_cache=/tmp/cache ggo2016 /mnt/s3
+    s3fs -o use_cache=/tmp/cache ggo2016 ~/mnt/s3
 }
 
 # setup a trip to call abort on non-zero return code
 trap 'abort' 0
 
-if which s3f3 >/dev/null; then
-    echo "s3f3 command exists."
+if which s3fs >/dev/null; then
+    echo "s3fs command exists."
 else
-    echo "s3f3 command does not exist, install it..."
+    echo "s3fs command does not exist, install it..."
     install_s3
 fi
 
