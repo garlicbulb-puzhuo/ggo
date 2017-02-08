@@ -6,7 +6,6 @@ from sqlalchemy.orm import sessionmaker
 
 from task import Task
 from task import Base
-from ..train import main
 
 import logging
 import sys
@@ -22,12 +21,13 @@ logger.addHandler(logging_handler_out)
 
 
 def get_parser():
-    parser = argparse.ArgumentParser(description='lauch task from ec2')
+    parser = argparse.ArgumentParser(description='launch task from ec2')
     parser.add_argument('--dburl', metavar='dburl', nargs='?',
                         help='the mysql db url')
     return parser
 
 if __name__ == '__main__':
+    from ..train import main
     parser = get_parser()
     args = parser.parse_args()
     if not args.dburl:
