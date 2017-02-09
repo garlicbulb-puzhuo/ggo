@@ -12,6 +12,7 @@ import sys
 import ConfigParser
 import os
 import argparse
+import socket
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -46,6 +47,7 @@ if __name__ == '__main__':
         if task.state == 'pending' or task.state == 'starting':
             # start processing the task
             task.state = 'processing'
+            task.worker = socket.gethostname()
 
             working_dir = task.working_dir
 
@@ -60,7 +62,7 @@ if __name__ == '__main__':
     else:
         logger.info('Found one pending task in %s.' % working_dir)
 
-    mount_path = '~/mnt/s3'
+    mount_path = '/home/ubuntu/mnt/s3'
     working_dir = os.path.join(mount_path, working_dir)
 
     # read config file from the working directory
