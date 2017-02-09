@@ -43,7 +43,7 @@ if __name__ == '__main__':
 
     working_dir = None
     for task in rs:
-        if task.state == 'pending':
+        if task.state == 'pending' or task.state == 'starting':
             # start processing the task
             task.state = 'processing'
 
