@@ -66,6 +66,8 @@ if __name__ == '__main__':
     # read config file from the working directory
     config = ConfigParser.ConfigParser()
     task_config_file = os.path.join(working_dir, 'config.ini')
+
+    logger.info('Reading config file from %s...' % task_config_file)
     config.read(task_config_file)
     data_config = dict(config.items('config'))
 
