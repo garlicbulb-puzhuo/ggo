@@ -3,7 +3,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-
+from ..train import main
 from task import Task
 from task import Base
 
@@ -27,7 +27,6 @@ def get_parser():
     return parser
 
 if __name__ == '__main__':
-    from ..train import main
     parser = get_parser()
     args = parser.parse_args()
     if not args.dburl:
