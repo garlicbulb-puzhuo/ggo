@@ -41,6 +41,7 @@ if __name__ == '__main__':
     s = session()
     rs = s.query(Task).all()
 
+    working_dir = None
     for task in rs:
         if task.state == 'pending':
             # start processing the task
@@ -54,6 +55,7 @@ if __name__ == '__main__':
 
     if working_dir is None:
         logger.info('No pending task to be processed. Exit the program.')
+        s.close()
         sys.exit(0)
     else:
         logger.info('Found one pending task in %s.' % working_dir)
@@ -63,16 +65,21 @@ if __name__ == '__main__':
 
     # read config file from the working directory
     config = ConfigParser.ConfigParser()
-    task_config_file = os.path.join(mount_path, 'config.ini')
+    task_config_file = os.path.join(working_dir, 'config.ini')
     config.read(task_config_file)
     data_config = dict(config.items('config'))
 
     # prepare for arguments
-    train_imgs_path=data_config.get('train_imgs_path')
-    config_file=data_config.get('config_file')
+    train_imgs_path = data_config.get('train_imgs_path')
+    train_imgs_path = os.path.join(working_dir, train_imgs_path)
+    config_file = data_config.get('config_file')
+    config_file = os.path.join(working_dir, config_file)
+
     prog_args = ['--train', '--train_imgs_path', train_imgs_path, '--train_mode', 'standalone', '--config_file', config_file]
     logger.info('Preparing for main program arguments [%s]' % ','.join(map(str, prog_args)))
 
     # launch main program
     main(prog_args)
+
+    s.close()
 
