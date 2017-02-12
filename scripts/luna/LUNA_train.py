@@ -151,7 +151,8 @@ def get_parser():
                         help='config file for your training and prediction')
     return parser
 
-if __name__ == '__main__':
+
+def main(prog_args):
     parser = get_parser()
     args = parser.parse_args()
 
@@ -161,7 +162,10 @@ if __name__ == '__main__':
         parser.error('Required to set --config_file')
 
     if not args.train_path:
-        parser.error('Required to set --working_path')
+        parser.error('Required to set --train_path')
+
+    if not args.val_path:
+        parser.error('Required to set --val_path')
 
     config = ConfigParser.ConfigParser()
     config.read(args.config_file)
@@ -169,3 +173,8 @@ if __name__ == '__main__':
 
     train_and_predict(True, train_path=args.train_path,
                       val_path=args.val_path, train_config=data_config)
+
+
+if __name__ == '__main__':
+    import sys
+    main(sys.argv[1:])
