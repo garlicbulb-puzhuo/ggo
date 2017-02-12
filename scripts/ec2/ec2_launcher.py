@@ -3,7 +3,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from ..train import main
+from ..luna.LUNA_train import main
 from task import Task
 from task import Base
 
