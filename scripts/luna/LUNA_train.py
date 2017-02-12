@@ -154,7 +154,7 @@ def get_parser():
 
 def main(prog_args):
     parser = get_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(prog_args)
 
     print(args)
 
