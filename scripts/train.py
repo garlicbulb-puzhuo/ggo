@@ -14,6 +14,7 @@ import os
 import sys
 import logging
 import numpy as np
+import os
 
 from loss import custom_loss
 
@@ -25,7 +26,6 @@ import traceback
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# match images and masks
 logging_handler_out = logging.StreamHandler(sys.stdout)
 logger.addHandler(logging_handler_out)
 
@@ -98,8 +98,10 @@ def get_standalone_model_callbacks(model_name, model_id, train_config):
     early_stop = EarlyStopping(
         monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
 
+    model_save_directory = train_config.get('model_save_directory', os.getcwd())
+
     model_checkpoint = ModelCheckpoint(
-        '%s.standalone.model%d.{epoch:02d}.hdf5' % (model_name, model_id), monitor='loss', save_best_only=False)
+        os.path.join(model_save_directory, '%s.standalone.model%d.{epoch:02d}.hdf5' % (model_name, model_id)), monitor='loss', save_best_only=False)
 
     class RemoveCheckpoints(Callback):
         def on_epoch_end(self, epoch):
@@ -152,7 +154,6 @@ def get_standalone_model_callbacks(model_name, model_id, train_config):
 
 def get_spark_model_callbacks(model_name, model_id, train_config):
     from elephas.spark_model import SparkWorkerCallback
-    import os
     import socket
 
     worker_epoch_updates = int(
@@ -234,7 +235,6 @@ def train(train_imgs_path, train_mode, train_config):
     def transfer_existing_model():
         import glob
         import re
-        import os
 
         files = glob.glob("*[model|weights]*.hdf5")
         li = 0
@@ -312,7 +312,6 @@ def train(train_imgs_path, train_mode, train_config):
 
     if train_mode == 'standalone':
         from utils import listdir_fullpath
-        import os
         if os.path.isdir(train_imgs_path):
             train_imgs_path = listdir_fullpath(train_imgs_path)
 
@@ -327,7 +326,6 @@ def train(train_imgs_path, train_mode, train_config):
         # transfer model weights
         transfer, last_iteration = transfer_existing_model()
         from utils import listdir_fullpath
-        import os
 
         # get the list of hdf5 files
         if os.path.isdir(train_imgs_path):
@@ -423,9 +421,10 @@ def get_parser():
 
     return parser
 
-if __name__ == '__main__':
+
+def main(prog_args):
     parser = get_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(prog_args)
 
     print(args)
 
@@ -456,3 +455,8 @@ if __name__ == '__main__':
         predict(model_file_path=args.model_file_path,
                 test_imgs_path=args.test_imgs_path,
                 config=data_config)
+
+
+if __name__ == '__main__':
+    import sys
+    main(sys.argv[1:])

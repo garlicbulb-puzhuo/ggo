@@ -2,3 +2,6 @@
 *.pyc
 env
 *.iml
+build
+dist
+ggo.egg-info
