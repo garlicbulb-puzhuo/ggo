@@ -1,32 +1,50 @@
-import sys
-sys.path.insert(0, '../luna16_script/')
-
-from watershed import load_scan, get_pixels_hu, seperate_lungs
+import argparse
 import os
-import fnmatch
+
+# sys.path.insert(0, '../luna16_script/')
+
 import numpy as np
 
-input_dir = '/Users/zhobuy98/workspace/kaggle3/input/stage1/'
-output_path = '/Volumes/MacBook/kaggle3/watershed_processed_data/'
-scans = [dirpath for dirpath, dirnames, files in os.walk(input_dir)][1:]
-
-for scan in scans: 
-	p = scan.replace(input_dir, "")
-	print "processing " + p
-	patient_scan = load_scan(scan)
-	imgs = get_pixels_hu(patient_scan)
-	num_images = imgs.shape[0]
-	out_imgs = np.ndarray([num_images,1,512,512],dtype=np.float32)
-	i = 0
-	for img in imgs: 
-		if i%10 == 0: 
-			print 'imgage '+ str(i)
-		segmented, lungfilter, outline, watershed, sobel_gradient, marker_internal, marker_external, marker_watershed = seperate_lungs(img)
-		out_imgs[i,0,:,:] = segmented
-		i += 1
-	np.save(output_path+p+".npy", out_imgs)
-	
+from watershed import load_scan, get_pixels_hu, seperate_lungs
 
 
+def get_parser():
+    parser = argparse.ArgumentParser(description='watershed data')
+    parser.add_argument('--input_dir', metavar='input_dir', nargs='?',
+                        help='input directory')
+    parser.add_argument('--output_path', metavar='output_path', nargs='?',
+                        help='output path directory')
+    return parser
 
+if __name__ == '__main__':
+    parser = get_parser()
+    args = parser.parse_args()
 
+    print(args)
+
+    if not args.input_dir:
+        parser.error('Required to set --input_dir')
+
+    if not args.input_dir:
+        parser.error('Required to set --output_path')
+
+    input_dir = args.input_dir
+    output_path = args.output_path
+
+    scans = [dirpath for dirpath, dirnames, files in os.walk(input_dir)][1:]
+    for scan in scans:
+        p = scan.replace(input_dir, "")
+        print "processing " + p
+        patient_scan = load_scan(scan)
+        imgs = get_pixels_hu(patient_scan)
+        num_images = imgs.shape[0]
+        out_imgs = np.ndarray([num_images, 1, 512, 512], dtype=np.float32)
+        i = 0
+        for img in imgs:
+            if i % 10 == 0:
+                print 'imgage ' + str(i)
+            segmented, lungfilter, outline, watershed, sobel_gradient, marker_internal, marker_external, marker_watershed = seperate_lungs(
+                img)
+            out_imgs[i, 0, :, :] = segmented
+            i += 1
+        np.save(output_path + p + ".npy", out_imgs)
