@@ -74,12 +74,14 @@ if __name__ == '__main__':
     data_config = dict(config.items('config'))
 
     # prepare for arguments
-    train_imgs_path = data_config.get('train_imgs_path')
-    train_imgs_path = os.path.join(working_dir, train_imgs_path)
+    train_path = data_config.get('train_path')
+    train_path = os.path.join(working_dir, train_path)
+    val_path = data_config.get('val_path')
+    val_path = os.path.join(working_dir, val_path)
     config_file = data_config.get('config_file')
     config_file = os.path.join(working_dir, config_file)
 
-    prog_args = ['--train', '--train_imgs_path', train_imgs_path, '--train_mode', 'standalone', '--config_file', config_file]
+    prog_args = ['--train_path', train_path, '--val_path', val_path, '--config_file', config_file]
     logger.info('Preparing for main program arguments [%s]' % ','.join(map(str, prog_args)))
 
     # launch main program
