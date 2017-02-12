@@ -22,9 +22,16 @@ One caveat is that you need to configure python building environment as below
             --prefix=/usr/local \
             LDFLAGS="-Wl,--rpath=/usr/local/lib"
 ```
+#### Install Python 2.7 on Mac OS
+```
+brew install python
+```
 ### Install opencv
 #### Install opencv on Mac OS
 http://www.mobileway.net/2015/02/14/install-opencv-for-python-on-mac-os-x/
+```
+brew install python
+```
 #### Install opencv on CentOs
 ##### Install opencv on CentOs - NOT WORKING
 ```
@@ -93,9 +100,15 @@ $ git clone https://github.com/maxpumperla/elephas.git
 $ cd elephas
 $ python setup.py install
 ```
+```
+pip install elephas
+```
 ### Deep Learning Packages
 * Install Theano
 http://deeplearning.net/software/theano/install.html
+```
+pip install theano
+```
 * Install python package locally, for example, elephas
 * Install Theano dependencies
 For Ubuntu: http://deeplearning.net/software/theano/install_ubuntu.html

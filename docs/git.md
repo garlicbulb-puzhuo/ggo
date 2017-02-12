@@ -14,4 +14,4 @@ $ git add <file that is changed>
 $ git commit -m "commit message"
 $ git push origin HEAD
 ```
-After the above is done, you will find a new feature branch is greated on github
+After the above is done, you will find a new feature branch is created on github
