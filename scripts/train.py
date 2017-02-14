@@ -279,8 +279,6 @@ def train(train_imgs_path, train_mode, train_config):
         from model_3 import get_model
 
     if model_id == 4:
-        import sys
-        sys.setrecursionlimit(1000000)
         from model_4 import get_model
 
     input_shape = (1, img_rows, img_cols)

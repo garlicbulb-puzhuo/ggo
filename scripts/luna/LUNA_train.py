@@ -9,7 +9,10 @@ import argparse
 import ConfigParser
 
 
-K.set_image_dim_ordering('th')  # Theano dimension ordering in this code
+if K.backend() == 'theano':
+    K.set_image_dim_ordering('th')  # Theano dimension ordering in this code
+else:
+    K.set_image_dim_ordering('tf')
 
 
 def data_generator(path, batch_size=2, img_rows=512, img_cols=512, shuffle=True):
@@ -100,8 +103,6 @@ def train_and_predict(use_existing, train_path, val_path, train_config):
         from ..model_3 import get_model
 
     elif model_id == 4:
-        import sys
-        sys.setrecursionlimit(1000000)
         from ..model_4 import get_model
 
     else:
@@ -111,7 +112,10 @@ def train_and_predict(use_existing, train_path, val_path, train_config):
 
     from ..train import get_standalone_model_callbacks
 
-    input_shape = (1, img_rows, img_cols)
+    if K.image_dim_ordering() == 'th':
+        input_shape = (1, img_rows, img_cols)
+    else:
+        input_shape = (img_rows, img_cols, 1)
     model, model_name = get_model(input_shape)
     model_callbacks = get_standalone_model_callbacks(
         model_name=model_name, model_id=model_id, train_config=train_config)
