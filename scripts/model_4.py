@@ -1,16 +1,27 @@
+"""
+Inception V3 model
+
+.. [Paper] Rethinking the Inception Architecture for Computer Vision: https://arxiv.org/abs/1512.00567
+.. Official keras implementation: https://github.com/fchollet/deep-learning-models/blob/master/inception_v3.py
+.. Other keras implementation: https://gist.github.com/neggert/f8b86d001a367aa7dde1ab6b587246b5
+"""
 from keras.models import Model
-from keras.layers import Input, Dense, Flatten, merge, Lambda, Dropout
-from keras.layers.convolutional import Convolution2D, MaxPooling2D, AveragePooling2D, ZeroPadding2D, Deconvolution2D
+from keras.layers import Dropout, Input, merge
+from keras.layers.convolutional import Convolution2D, MaxPooling2D, AveragePooling2D, Deconvolution2D
 from keras.layers.normalization import BatchNormalization
 from keras.regularizers import l2
 import keras.backend as K
 from optimizer import adam
 from loss import custom_loss, custom_metric
 
-# Evidently this model breaks Python's default recursion limit
-# This is a theano issue
-import sys
-sys.setrecursionlimit(1000000)
+if K.backend() == 'theano':
+    # Evidently this model breaks Python's default recursion limit
+    # This is a theano issue
+    import sys
+    sys.setrecursionlimit(1000000)
+    CONCAT_AXIS = 1
+else:
+    CONCAT_AXIS = 3
 
 
 def BNConv(nb_filter, nb_row, nb_col, w_decay, subsample=(1, 1), border_mode="same"):
@@ -67,8 +78,6 @@ def inception_v3(input_shape, dropout_prob, w_decay=None):
    
     
 def get_model(input_shape = (1, 128, 128), dropout_prob = 0.5, w_decay = None):
-    import sys
-    sys.setrecursionlimit(1000000)
     import time
     start = time.time()
     model = inception_v3(input_shape, dropout_prob, w_decay)
@@ -104,7 +113,7 @@ def InceptionFig5(w_decay):
         # Tower D
         conv_d1 = BNConv(64, 1, 1, w_decay)(input)
 
-        return merge([conv_a3, conv_b2, conv_c2, conv_d1], mode='concat', concat_axis=1)
+        return merge([conv_a3, conv_b2, conv_c2, conv_d1], mode='concat', concat_axis=CONCAT_AXIS)
 
     return f
 
@@ -129,7 +138,7 @@ def InceptionFig6(w_decay):
         # Tower D
         conv_d = BNConv(192, 1, 1, w_decay)(input)
 
-        return merge([conv_a5, conv_b3, conv_c2, conv_d], mode="concat", concat_axis=1)
+        return merge([conv_a5, conv_b3, conv_c2, conv_d], mode="concat", concat_axis=CONCAT_AXIS)
 
     return f
 
@@ -154,7 +163,7 @@ def InceptionFig7(w_decay):
         # Tower D
         conv_d = BNConv(320, 1, 1, w_decay)(input)
 
-        return merge([conv_a4, conv_b3, conv_c2, conv_d], mode="concat", concat_axis=1)
+        return merge([conv_a4, conv_b3, conv_c2, conv_d], mode="concat", concat_axis=CONCAT_AXIS)
 
     return f
 
@@ -172,7 +181,7 @@ def DimReductionA(w_decay):
 
         pool_c = MaxPooling2D(pool_size=(3, 3), strides=(2, 2), border_mode="valid")(input)
 
-        return merge([conv_a3, conv_b, pool_c], mode="concat", concat_axis=1)
+        return merge([conv_a3, conv_b, pool_c], mode="concat", concat_axis=CONCAT_AXIS)
     return f
 
 
@@ -191,7 +200,7 @@ def DimReductionB(w_decay):
         # Tower C
         pool_c = MaxPooling2D(pool_size=(3, 3), strides=(2, 2), border_mode="valid")(input)
 
-        return merge([conv_a2, conv_b4, pool_c], mode="concat", concat_axis=1)
+        return merge([conv_a2, conv_b4, pool_c], mode="concat", concat_axis=CONCAT_AXIS)
     return f
 
 

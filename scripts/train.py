@@ -9,6 +9,8 @@ from keras.callbacks import Callback
 
 import ConfigParser
 import argparse
+import glob
+import os
 import sys
 import logging
 import numpy as np
@@ -79,6 +81,18 @@ def get_spark_model(model, model_name, model_id, train_config):
 
 
 def get_standalone_model_callbacks(model_name, model_id, train_config):
+    """
+    Returns a list of callback functions.
+        - Callback that creates a checkpoint file.
+        - Callback that removes old checkpoint files (saves only up to recent 5 files).
+        - Callback that that prints loss history.
+
+    :param model_name: model name in string
+    :param model_id: model id in integer
+    :param train_config: train config in ConfigParser.ConfigParser
+    :return: [model_checkpoint, remove_model_checkpoints, print_history]
+    """
+    # TODO: EarlyStopping is not used? Remove the following code?
     early_stop_min_delta = float(
         train_config.get('early_stop_min_delta', 1e-6))
     early_stop = EarlyStopping(
@@ -88,6 +102,21 @@ def get_standalone_model_callbacks(model_name, model_id, train_config):
 
     model_checkpoint = ModelCheckpoint(
         os.path.join(model_save_directory, '%s.standalone.model%d.{epoch:02d}.hdf5' % (model_name, model_id)), monitor='loss', save_best_only=False)
+
+    class RemoveCheckpoints(Callback):
+        def on_epoch_end(self, epoch):
+            # Get sorted checkpoint files
+            files = filter(os.path.isfile, glob("*.hdf5"))
+            files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+
+            # Remove old files
+            if len(files) > 5:
+                old_files = files[5:]
+                for old_file in old_files:
+                    print("Removing an old file {}".format(old_file))
+                    os.remove(old_file)
+
+    remove_checkpoints = RemoveCheckpoints()
 
     standalone_loss_history_file = train_config.get(
         'standalone_loss_history_file', 'standalone_loss_history_file')
@@ -113,13 +142,14 @@ def get_standalone_model_callbacks(model_name, model_id, train_config):
 
     print_history = LossHistory(standalone_loss_history_file)
 
+    # TODO: PrintBatch is not used? Remove the following code?
     class PrintBatch(Callback):
 
         def on_batch_end(self, epoch, logs={}):
             print(logs)
 
     pb = PrintBatch()
-    return [model_checkpoint, print_history]
+    return [model_checkpoint, remove_checkpoints, print_history]
 
 
 def get_spark_model_callbacks(model_name, model_id, train_config):
@@ -249,8 +279,6 @@ def train(train_imgs_path, train_mode, train_config):
         from model_3 import get_model
 
     if model_id == 4:
-        import sys
-        sys.setrecursionlimit(1000000)
         from model_4 import get_model
 
     input_shape = (1, img_rows, img_cols)

@@ -2,46 +2,29 @@ from __future__ import print_function
 
 import numpy as np
 from glob import glob
-from keras.models import Model
-from keras.layers import Input, merge, Convolution2D, MaxPooling2D, UpSampling2D
-from keras.optimizers import Adam
-from keras.optimizers import SGD
-from keras.callbacks import ModelCheckpoint, LearningRateScheduler, Callback
 from keras import backend as K
-from keras.preprocessing.image import ImageDataGenerator
 
 import os
 import argparse
 import ConfigParser
 
-from ..train import get_standalone_model_callbacks
 
-
-K.set_image_dim_ordering('th')  # Theano dimension ordering in this code
-
-smooth = 1.
-
-
-def dice_coef(y_true, y_pred):
-    y_true_f = K.flatten(y_true)
-    y_pred_f = K.flatten(y_pred)
-    intersection = K.sum(y_true_f * y_pred_f)
-    return (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
-
-
-def dice_coef_np(y_true, y_pred):
-    y_true_f = y_true.flatten()
-    y_pred_f = y_pred.flatten()
-    intersection = np.sum(y_true_f * y_pred_f)
-    return (2. * intersection + smooth) / (np.sum(y_true_f) + np.sum(y_pred_f) + smooth)
-
-
-def dice_coef_loss(y_true, y_pred):
-    return -dice_coef(y_true, y_pred)
+if K.backend() == 'theano':
+    K.set_image_dim_ordering('th')  # Theano dimension ordering in this code
+else:
+    K.set_image_dim_ordering('tf')
 
 
 def data_generator(path, batch_size=2, img_rows=512, img_cols=512, shuffle=True):
-    f = []
+    """
+    A data generator that generates images and masks.
+
+    :param path: train or val data directory in string.
+    :param batch_size: batch size.
+    :param img_rows: NOT USED
+    :param img_cols: NOT USED
+    :param shuffle: whether shuffling images. It's set to True for now.
+    """
     f = glob(path + "*Images_*.npy")
     N = len(f)
     n = 0
@@ -77,11 +60,27 @@ def data_generator(path, batch_size=2, img_rows=512, img_cols=512, shuffle=True)
             n = 0
 
 
-def train_and_predict(use_existing, train_path, val_path, train_config):
-    print('-' * 30)
-    print('Loading and preprocessing train data...')
-    print('-' * 30)
+def get_latest_hdf5():
+    """
+    Returns the latest hdf5 file.
 
+    :return: latest hdf5 filename.
+    """
+    files = filter(os.path.isfile, glob("*.hdf5"))
+    files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+    if len(files) > 0:
+        return files[0]
+
+
+def train_and_predict(use_existing, train_path, val_path, train_config):
+    """
+    Create/compile a model from model_[1,2,3,4] packages and fits the model on data generated batch-by-batch by a Python generator.
+
+    :param use_existing: whether using existing model weights file. It's set to True for now.
+    :param train_path: train data directory in string.
+    :param val_path: val data directory in string.
+    :param train_config: config in ConfigParser.ConfigParser().
+    """
     print('-' * 30)
     print('Creating and compiling model...')
     print('-' * 30)
@@ -97,36 +96,42 @@ def train_and_predict(use_existing, train_path, val_path, train_config):
     if model_id == 1:
         from ..model_1 import get_model
 
-    if model_id == 2:
+    elif model_id == 2:
         from ..model_2 import get_model
 
-    if model_id == 3:
+    elif model_id == 3:
         from ..model_3 import get_model
 
-    if model_id == 4:
-        import sys
-        sys.setrecursionlimit(1000000)
+    elif model_id == 4:
         from ..model_4 import get_model
 
-    input_shape = (1, img_rows, img_cols)
+    else:
+        import sys
+        print("model_id should be in [1..4].")
+        sys.exit(1)
+
+    from ..train import get_standalone_model_callbacks
+
+    if K.image_dim_ordering() == 'th':
+        input_shape = (1, img_rows, img_cols)
+    else:
+        input_shape = (img_rows, img_cols, 1)
     model, model_name = get_model(input_shape)
     model_callbacks = get_standalone_model_callbacks(
         model_name=model_name, model_id=model_id, train_config=train_config)
 
-    # Saving weights to unet.hdf5 at checkpoints
-    # model_checkpoint = ModelCheckpoint('unet.hdf5', monitor='loss', save_best_only=True)
-    #
-    # Should we load existing weights?
-    # Set argument for call to train_and_predict to true at end of script
+    # Use existing latest model weights.
     if use_existing:
-        model.load_weights('./model.weights.hdf5')
+        latest_hdf5_file = get_latest_hdf5()
+        if latest_hdf5_file:
+            model.load_weights(latest_hdf5_file)
 
     #
     # The final results for this tutorial were produced using a multi-GPU
     # machine using TitanX's.
     # For a home GPU computation benchmark, on my home set up with a GTX970
     # I was able to run 20 epochs with a training set size of 320 and
-    # batch size of 2 in about an hour. I started getting reseasonable masks
+    # batch size of 2 in about an hour. I started getting reasonable masks
     # after about 3 hours of training.
     #
     print('-' * 30)
@@ -143,11 +148,11 @@ def train_and_predict(use_existing, train_path, val_path, train_config):
 def get_parser():
     parser = argparse.ArgumentParser(description='Train model.')
 
-    parser.add_argument('--train_path', metavar='train_path', nargs='?',
+    parser.add_argument('--train_path', metavar='train_path', nargs='?', required=True,
                         help='train data directory containing numpy formatted images and masks in the training set')
     parser.add_argument('--val_path', metavar='val_path', nargs='?',
                         help='val data directory containing numpy formatted images and masks in the val set')
-    parser.add_argument('--config_file', metavar='config_file', nargs='?',
+    parser.add_argument('--config_file', metavar='config_file', nargs='?', required=True,
                         help='config file for your training and prediction')
     return parser
 
