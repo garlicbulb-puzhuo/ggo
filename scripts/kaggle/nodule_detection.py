@@ -2,7 +2,7 @@ from __future__ import print_function
 
 import argparse
 from glob import glob
-
+import os
 import numpy as np
 from keras import backend as K
 
@@ -44,7 +44,7 @@ def predict(model_id, model_weights, input_path, output_path):
     print('-' * 30)
     print('Predicting masks on test data...')
     print('-' * 30)
-    f_list = glob(input_path + "*.npy")
+    f_list = glob(input_path + os.pathsep + "*.npy")
     print("Total patients:" + str(len(f_list)))
 
     for f in f_list:
@@ -76,7 +76,7 @@ def predict(model_id, model_weights, input_path, output_path):
             if np.any(mask_pred[i, 0] > 0.9):
                 n += 1
         print("positive images: " + str(n))
-        np.save(output_path + 'mask_' + f.split("/")[-1], mask_pred)
+        np.save(output_path + os.pathsep + 'mask_' + f.split("/")[-1], mask_pred)
 
 
 def get_parser():
