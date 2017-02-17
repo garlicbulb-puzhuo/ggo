@@ -57,7 +57,6 @@ if __name__ == '__main__':
 
     if working_dir is None:
         logger.info('No pending task to be processed. Exit the program.')
-        s.close()
         sys.exit(0)
     else:
         logger.info('Found one pending task in %s.' % working_dir)
@@ -86,6 +85,4 @@ if __name__ == '__main__':
 
     # launch main program
     main(prog_args)
-
-    s.close()
 
