@@ -1,13 +1,11 @@
 from __future__ import print_function
 
-import numpy as np
-from glob import glob
-from keras import backend as K
-import os
 import argparse
-import ConfigParser
-from ..loss import dice_coef_np
-import matplotlib.pyplot as plt
+from glob import glob
+import os
+import numpy as np
+from keras import backend as K
+
 
 def predict(model_id, model_weights, input_path, output_path):
     print('-' * 30)
@@ -35,63 +33,62 @@ def predict(model_id, model_weights, input_path, output_path):
     model, model_name = get_model(input_shape)
 
     # loading model weights
-    print('-'*30)
+    print('-' * 30)
     print('Loading saved weights...')
-    print('-'*30)
+    print('-' * 30)
     model.load_weights(model_weights)
 
-    get_layer_output = K.function([model.layers[0].input, K.learning_phase()], [model.layers[-1].output])
+    get_layer_output = K.function([model.layers[0].input, K.learning_phase()], [
+                                  model.layers[-1].output])
 
-    print('-'*30)
+    print('-' * 30)
     print('Predicting masks on test data...')
-    print('-'*30)
-    f_list = glob(input_path+"*.npy")
-    print("Total patients:"+str(len(f_list)))
-    
-    for f in f_list: 
-        print("Processing: "+f)
+    print('-' * 30)
+    f_list = glob(input_path + os.pathsep + "*.npy")
+    print("Total patients:" + str(len(f_list)))
+
+    for f in f_list:
+        print("Processing: " + f)
         imgs = np.load(f)
         mean = np.mean(imgs)
         std = np.std(imgs)
-        imgs-= mean  
+        imgs -= mean
         imgs /= std
         num = len(imgs)
-        mask_pred = np.ndarray([num,1,512,512],dtype=np.float32)
+        mask_pred = np.ndarray([num, 1, 512, 512], dtype=np.float32)
         batch_size = 50
-        if (batch_size > num): 
-            mask_pred = get_layer_output([imgs,0])[0]
-        else: 
-            nbatch = num/batch_size
-            remain = num%batch_size
-            for i in range(nbatch): 
-                print("Batch:"+str(i))
-                start_index = i*batch_size
-                end_index = (i+1)*batch_size
-                mask_pred[start_index:end_index,:,:,:] = get_layer_output([imgs[start_index:end_index,:,:,:],0])[0]
-            if remain>0: 
-                mask_pred[end_index:num,:,:,:] = get_layer_output([imgs[end_index:num,:,:,:],0])[0]
+        if (batch_size > num):
+            mask_pred = get_layer_output([imgs, 0])[0]
+        else:
+            nbatch = num / batch_size
+            remain = num % batch_size
+            for i in range(nbatch):
+                print("Batch:" + str(i))
+                start_index = i * batch_size
+                end_index = (i + 1) * batch_size
+                mask_pred[start_index:end_index, :, :, :] = get_layer_output(
+                    [imgs[start_index:end_index, :, :, :], 0])[0]
+            if remain > 0:
+                mask_pred[end_index:num, :, :, :] = get_layer_output(
+                    [imgs[end_index:num, :, :, :], 0])[0]
         n = 0
         for i in range(num):
-            if np.any(mask_pred[i,0]>0.9):
-                n +=1
-        print("positive images: "+str(n))
-        np.save(output_path+'mask_'+f.split("/")[-1], mask_pred)
-    
-    
+            if np.any(mask_pred[i, 0] > 0.9):
+                n += 1
+        print("positive images: " + str(n))
+        np.save(output_path + os.pathsep + 'mask_' + f.split("/")[-1], mask_pred)
+
+
 def get_parser():
     parser = argparse.ArgumentParser(description='Prediction.')
-    #parser.add_argument('--working_path', metavar='working_path', nargs='?',
-    #                    help='working directory containing numpy formatted images and masks in the training set')
     parser.add_argument('--input_path', metavar='input_path', nargs='?',
                         help='test data directory containing numpy formatted images and masks in the test set')
-    #parser.add_argument('--config_file', metavar='config_file', nargs='?',
-    #                    help='config file for your training and prediction')
     parser.add_argument('--model_id', metavar='model_id', nargs='?', type=int,
-                         help='model_id')
+                        help='model_id')
     parser.add_argument('--model_weights', metavar='model_weights', nargs='?',
-                         help='trained model weights file')
+                        help='trained model weights file')
     parser.add_argument('--output_path', metavar='output_path', nargs='?',
-                         help='output directory to store predition ')
+                        help='output directory to store predition ')
     return parser
 
 if __name__ == '__main__':
@@ -106,4 +103,5 @@ if __name__ == '__main__':
     if not args.input_path:
         parser.error('Required to set --test_path')
 
-    predict(model_id=args.model_id, model_weights=args.model_weights, input_path=args.input_path, output_path=args.output_path)
+    predict(model_id=args.model_id, model_weights=args.model_weights,
+            input_path=args.input_path, output_path=args.output_path)

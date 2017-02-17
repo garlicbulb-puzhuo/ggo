@@ -25,7 +25,7 @@ def data_generator(path, batch_size=2, img_rows=512, img_cols=512, shuffle=True)
     :param img_cols: NOT USED
     :param shuffle: whether shuffling images. It's set to True for now.
     """
-    f = glob(path + "*Images_*.npy")
+    f = glob(path + os.pathsep + "*Images_*.npy")
     N = len(f)
     n = 0
     while True:
@@ -156,11 +156,21 @@ def get_parser():
                         help='config file for your training and prediction')
     return parser
 
-if __name__ == '__main__':
+
+def main(prog_args):
     parser = get_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(prog_args)
 
     print(args)
+
+    if not args.config_file:
+        parser.error('Required to set --config_file')
+
+    if not args.train_path:
+        parser.error('Required to set --train_path')
+
+    if not args.val_path:
+        parser.error('Required to set --val_path')
 
     config = ConfigParser.ConfigParser()
     config.read(args.config_file)
@@ -168,3 +178,8 @@ if __name__ == '__main__':
 
     train_and_predict(True, train_path=args.train_path,
                       val_path=args.val_path, train_config=data_config)
+
+
+if __name__ == '__main__':
+    import sys
+    main(sys.argv[1:])
