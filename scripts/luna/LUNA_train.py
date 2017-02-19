@@ -25,7 +25,9 @@ def data_generator(path, batch_size=2, img_rows=512, img_cols=512, shuffle=True)
     :param img_cols: NOT USED
     :param shuffle: whether shuffling images. It's set to True for now.
     """
-    f = glob(path + os.sep + "*Images_*.npy")
+
+    input_path = os.path.join(path, "*Images_*.npy")
+    f = glob(input_path)
     N = len(f)
     n = 0
     while True:
