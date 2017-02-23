@@ -1,86 +1,72 @@
 from __future__ import print_function
 
 import numpy as np
+from glob import glob
 from keras.models import Model
 from keras.layers import Input, merge, Convolution2D, MaxPooling2D, UpSampling2D
 from keras.optimizers import Adam
 from keras.optimizers import SGD
 from keras.callbacks import ModelCheckpoint, LearningRateScheduler, Callback
 from keras import backend as K
+from keras.preprocessing.image import ImageDataGenerator
 
 import os
 import argparse
 import ConfigParser
-
+from random import shuffle
 from ..train import get_standalone_model_callbacks
 
 
 K.set_image_dim_ordering('th')  # Theano dimension ordering in this code
 
-smooth = 1.
+
+def data_generator(path, batch_size=2, img_rows=512, img_cols=512, shuffle_data=True): 
+    f = []
+    f = glob(path+"*Images_*.npy")
+    N = len(f)
+    n = 0 
+    while True: 
+        if shuffle_data:
+            shuffle(f)
+        in_imgs = np.load(f[n])
+        in_masks = np.load(f[n].replace("Images","Masks"))
+        num = in_imgs.shape[0]
+        mean = np.mean(in_imgs)
+        std = np.std(in_imgs)
+        in_imgs-= mean  # images should already be standardized, but just in case
+        in_imgs /= std
+        if num>0 : 
+            if shuffle_data:
+                ix = np.arange(num)
+                np.random.shuffle(ix)
+                in_imgs = in_imgs[ix, :, :, :]
+                in_masks = in_masks[ix, :, :, :]
+            if (num < batch_size): 
+                out = (in_imgs, in_masks)
+                yield out
+            else: 
+                k = 0 
+                while k+batch_size <= num: 
+                    out = (in_imgs[k:(k+batch_size),:,:,:], in_masks[k:(k+batch_size),:,:,:])
+                    k += batch_size
+                    yield out
+                if k<num: 
+                    out = (in_imgs[k:num,:,:,:], in_masks[k:num,:,:,:])
+                    yield out
+        n += 1
+        if n>=N: 
+            n=0 
 
 
-# def get_standalone_model_callbacks(model_name, loss_history_file='loss_history_file'):
-#     model_checkpoint = ModelCheckpoint(
-#         '%s.standalone.model.{epoch:02d}.hdf5' % model_name, monitor='loss', save_best_only=False)
-#
-#     class LossHistory(Callback):
-#
-#         def __init__(self, filename):
-#             self.file = filename
-#             self.losses = []
-#             self.val_losses = []
-#
-#         def on_train_begin(self, logs={}):
-#             self.losses = []
-#             self.val_losses = []
-#
-#         def on_epoch_end(self, epoch, logs={}):
-#             self.losses.append(logs.get('loss'))
-#             self.val_losses.append(logs.get('val_loss'))
-#             print("train_loss: {0}; val_loss: {1}".format(
-#                 logs.get('loss'), logs.get('val_loss')))
-#             losses = np.vstack((self.losses, self.val_losses))
-#             np.savetxt(self.file, losses, delimiter=',')
-#
-#     print_history = LossHistory(loss_history_file)
-#
-#     class PrintBatch(Callback):
-#
-#         def on_batch_end(self, epoch, logs={}):
-#             print(logs)
-#
-#     pb = PrintBatch()
-#     return [model_checkpoint, print_history]
-
-
-def dice_coef(y_true, y_pred):
-    y_true_f = K.flatten(y_true)
-    y_pred_f = K.flatten(y_pred)
-    intersection = K.sum(y_true_f * y_pred_f)
-    return (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
-
-
-def dice_coef_np(y_true, y_pred):
-    y_true_f = y_true.flatten()
-    y_pred_f = y_pred.flatten()
-    intersection = np.sum(y_true_f * y_pred_f)
-    return (2. * intersection + smooth) / (np.sum(y_true_f) + np.sum(y_pred_f) + smooth)
-
-
-def dice_coef_loss(y_true, y_pred):
-    return -dice_coef(y_true, y_pred)
-
-
-def train_and_predict(use_existing, working_path, train_config):
+def train_and_predict(use_existing, train_path, val_path, train_config):
     print('-' * 30)
     print('Loading and preprocessing train data...')
     print('-' * 30)
-
+    '''
     imgs_train = np.load(os.path.join(
-        working_path, "trainImages.npy")).astype(np.float32)
+        train_path, "trainImages.npy")).astype(np.float32)
     imgs_mask_train = np.load(os.path.join(
-        working_path, "trainMasks.npy")).astype(np.float32)
+        train_path, "trainMasks.npy")).astype(np.float32)
 
     # imgs_test = np.load(working_path+"testImages.npy").astype(np.float32)
     # imgs_mask_test_true = np.load(working_path+"testMasks.npy").astype(np.float32)
@@ -90,7 +76,7 @@ def train_and_predict(use_existing, working_path, train_config):
 
     imgs_train -= mean  # images should already be standardized, but just in case
     imgs_train /= std
-
+    '''
     print('-' * 30)
     print('Creating and compiling model...')
     print('-' * 30)
@@ -127,7 +113,7 @@ def train_and_predict(use_existing, working_path, train_config):
     # Should we load existing weights?
     # Set argument for call to train_and_predict to true at end of script
     if use_existing:
-        model.load_weights('./unet.hdf5')
+        model.load_weights('./model.weights.hdf5')
 
     #
     # The final results for this tutorial were produced using a multi-GPU
@@ -140,9 +126,14 @@ def train_and_predict(use_existing, working_path, train_config):
     print('-' * 30)
     print('Fitting model...')
     print('-' * 30)
-    model.fit(imgs_train, imgs_mask_train, batch_size=batch_size, nb_epoch=nb_epoch,
-              verbose=1, shuffle=True, validation_split=validation_split, callbacks=model_callbacks)
 
+    #model.fit(imgs_train, imgs_mask_train, batch_size=batch_size, nb_epoch=nb_epoch,
+    #          verbose=1, shuffle=True, validation_split=validation_split, callbacks=model_callbacks)
+    model.fit_generator(
+            generator=data_generator(train_path, batch_size=batch_size),
+            samples_per_epoch=2000, nb_epoch=nb_epoch, verbose=1, callbacks=model_callbacks, max_q_size = 5, nb_worker=1,
+            validation_data=data_generator(val_path, batch_size=batch_size),
+            nb_val_samples=200)
     '''
     # loading best weights from training session
     print('-'*30)
@@ -168,8 +159,12 @@ def train_and_predict(use_existing, working_path, train_config):
 
 def get_parser():
     parser = argparse.ArgumentParser(description='Train model.')
-    parser.add_argument('--working_path', metavar='working_path', nargs='?',
-                        help='working directory containing numpy formatted images and masks in the training set')
+    #parser.add_argument('--working_path', metavar='working_path', nargs='?',
+    #                    help='working directory containing numpy formatted images and masks in the training set')
+    parser.add_argument('--train_path', metavar='train_path', nargs='?',
+                        help='train data directory containing numpy formatted images and masks in the training set')
+    parser.add_argument('--val_path', metavar='val_path', nargs='?',
+                        help='val data directory containing numpy formatted images and masks in the val set')
     parser.add_argument('--config_file', metavar='config_file', nargs='?',
                         help='config file for your training and prediction')
     return parser
@@ -183,12 +178,13 @@ if __name__ == '__main__':
     if not args.config_file:
         parser.error('Required to set --config_file')
 
-    if not args.working_path:
-        parser.error('Required to set --working_path')
+    if not args.train_path:
+        parser.error('Required to set --train_path')
 
     config = ConfigParser.ConfigParser()
     config.read(args.config_file)
     data_config = dict(config.items('config'))
 
-    train_and_predict(False, working_path=args.working_path,
-                      train_config=data_config)
+    train_and_predict(True, train_path=args.train_path, val_path=args.val_path, train_config=data_config)
+    #for i in range(100):
+    #    print(np.mean(data_generator("/Users/zhobuy98/workspace/kaggle3/output/luna16/3_slice/train/", batch_size=100).next()[0]))

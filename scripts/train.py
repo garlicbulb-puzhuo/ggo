@@ -13,7 +13,7 @@ import sys
 import logging
 import numpy as np
 
-from loss import custom_loss
+from loss import dice_coef_loss
 
 from data_utils import train_val_data_generator, test_data_generator, train_val_generator
 
@@ -79,13 +79,16 @@ def get_spark_model(model, model_name, model_id, train_config):
 
 
 def get_standalone_model_callbacks(model_name, model_id, train_config):
-    early_stop_min_delta = float(
-        train_config.get('early_stop_min_delta', 1e-6))
-    early_stop = EarlyStopping(
-        monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
+    #early_stop_min_delta = float(
+    #    train_config.get('early_stop_min_delta', 1e-6))
+    #early_stop = EarlyStopping(
+    #    monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
 
+    #model_checkpoint = ModelCheckpoint(
+    #    '%s.standalone.model%d.{epoch:02d}.hdf5' % (model_name, model_id), monitor='loss', save_best_only=False)
+    
     model_checkpoint = ModelCheckpoint(
-        '%s.standalone.model%d.{epoch:02d}.hdf5' % (model_name, model_id), monitor='loss', save_best_only=False)
+        '%s.standalone.model%d.hdf5' % (model_name, model_id), monitor='loss', save_best_only=False)
 
     standalone_loss_history_file = train_config.get(
         'standalone_loss_history_file', 'standalone_loss_history_file')
