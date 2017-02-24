@@ -2,7 +2,6 @@ import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 
-#filename = '../../../unet.model.1.hdf5'
 filename = 'unet.hdf5'
 
 
