@@ -48,13 +48,7 @@ def get_pixels_hu(scans):
     image += np.int16(intercept)
 
     return np.array(image, dtype=np.int16)
-'''
-test_patient_scans = load_scan(INPUT_FOLDER + patients[8])
-test_patient_images = get_pixels_hu(test_patient_scans)
-print ("Original Slice")
-plt.imshow(test_patient_images[65], cmap='gray')
-plt.show()
-'''
+
 
 # Some of the starting Code is taken from ArnavJain, since it's more
 # readable then my own
