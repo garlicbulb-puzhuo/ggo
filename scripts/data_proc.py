@@ -476,7 +476,6 @@ def create_data_2(src_dirs, des_file, original_size, normalization=True, whiteni
                         print 'Done: {0} images'.format(counter)
             ix = clustering(imgs_unfiltered, ggo_flag).tolist()
             imgs_filtered = imgs_filtered + [x for x, is_good in zip(imgs_unfiltered, ix) if is_good]
-            # print "before filtering:", len(imgs_unfiltered), "after filtering:", len(imgs_filtered)
             masks_filtered = masks_filtered + [x for x, is_good in zip(masks_unfiltered, ix) if is_good]
             indices_filtered = indices_filtered + [x for x, is_good in zip(indices_unfiltered, ix) if is_good]
 
@@ -634,20 +633,6 @@ def clustering(imgs, ggo_flag):
             ix[np.where(kmeans.labels_ == i)[0]] = True
     ix[np.where(np.asarray(ggo_flag))] = True
     return ix
-    '''
-    print "clusters:", sum(kmeans.labels_ == 0), sum(kmeans.labels_ == 1), sum(kmeans.labels_ == 2)
-    print "has_ggo", sum(ggo_flag)
-    print sum(kmeans.labels_[np.asarray(ggo_flag)] == 0), sum(kmeans.labels_[np.asarray(ggo_flag)] == 1), sum(kmeans.labels_[np.asarray(ggo_flag)] == 2)
-    plt.imshow(imgs[np.where(kmeans.labels_ == 0)[0][0],:].reshape(128,128))
-    plt.gray()
-    plt.show()
-    plt.imshow(imgs[np.where(kmeans.labels_ == 1)[0][0],:].reshape(128,128))
-    plt.gray()
-    plt.show()
-    plt.imshow(imgs[np.where(kmeans.labels_ == 2)[0][0],:].reshape(128,128))
-    plt.gray()
-    plt.show()
-    '''
 
 if __name__ == '__main__':
     args = parse_options()
