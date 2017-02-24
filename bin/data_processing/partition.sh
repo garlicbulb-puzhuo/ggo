@@ -15,6 +15,7 @@ function usage {
     echo "usage: ${progname} -i input_directory -o output_directory [-h]"
     echo "  -i  input directory"
     echo "  -o  output directory for the partitioned output"
+    echo "  -b  the number of files you put in each sub directory"
     echo "  [-h] Display usage"
     exit 1
 }
@@ -53,6 +54,11 @@ fi
 
 if [ ${output_dir_arg} -eq 0 ]; then
     echo "${progname}: Missing output directory argument"
+    usage
+fi
+
+if [ ${batch_size} -le 0 ]; then
+    echo "${progname}: Wrong value for batch size. Batch size should not be negative."
     usage
 fi
 

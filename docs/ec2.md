@@ -33,7 +33,7 @@
 - Partition the data set into multiple sub-sets, each of a smaller size, by running the following script
 
     ```
-    $ mkdir ~/mnt/s3/kaggle/partitioned_input
+    $ mkdir -p ~/mnt/s3/kaggle/partitioned_input
     $ bin/data_processing/partition.sh -i ~/mnt/s3/kaggle/input -o ~/mnt/s3/kaggle/partitioned_input [-b batch_size]
     ```
 

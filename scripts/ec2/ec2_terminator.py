@@ -27,8 +27,9 @@ def get_parser():
 if __name__ == '__main__':
     parser = get_parser()
     args = parser.parse_args()
-if not args.dburl:
-    parser.error('Required to set --dburl')
+
+    if not args.dburl:
+        parser.error('Required to set --dburl')
 
     engine = create_engine(args.dburl)
 
