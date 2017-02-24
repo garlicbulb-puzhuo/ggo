@@ -3,5 +3,5 @@
 - Start training in standalone mode
 ```
 $ cd ~/Developer/ggo
-$ python -m scripts.luna.LUNA_train --train_path <train_path> --val_path <val_path> --config_file config/luna/model_1_theano.ini
+$ python -m scripts.luna.LUNA_train -t <train_path> -v <val_path> -c config/luna/model_1_theano.ini
 ```

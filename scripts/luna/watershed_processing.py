@@ -10,9 +10,9 @@ from watershed import load_scan, get_pixels_hu, seperate_lungs
 
 def get_parser():
     parser = argparse.ArgumentParser(description='watershed data')
-    parser.add_argument('--input_dir', metavar='input_dir', nargs='?',
+    parser.add_argument('-i', '--input-dir', nargs='?', required=True,
                         help='input directory')
-    parser.add_argument('--output_path', metavar='output_path', nargs='?',
+    parser.add_argument('-o', '--output-path', nargs='?', required=True,
                         help='output path directory')
     return parser
 
@@ -21,12 +21,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     print(args)
-
-    if not args.input_dir:
-        parser.error('Required to set --input_dir')
-
-    if not args.input_dir:
-        parser.error('Required to set --output_path')
 
     input_dir = args.input_dir
     output_path = args.output_path

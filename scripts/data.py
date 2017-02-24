@@ -17,13 +17,13 @@ logging_handler_out = logging.StreamHandler(sys.stdout)
 logger.addHandler(logging_handler_out)
 
 
-def parse_options():
+def get_parser():
     parser = argparse.ArgumentParser(description='Merge DICOM Images.')
-    parser.add_argument('--input_dir', metavar='input_dir', nargs='?',
+    parser.add_argument('-i', '--input-dir', nargs='?', required=True,
                         help='input directory for source images')
-    parser.add_argument('--mask_input_dir', metavar='mask_input_dir', nargs='?',
+    parser.add_argument('-m', '--mask-input-dir', nargs='?', required=True,
                         help='input directory for mask images')
-    parser.add_argument('--output_dir', metavar='output_dir', nargs='?',
+    parser.add_argument('-o', '--output-dir', nargs='?', required=True,
                         help='output directory')
 
     return parser.parse_args()
@@ -60,7 +60,7 @@ def save(img_file, directory):
     shutil.copy2(img_file, directory)
 
 if __name__ == '__main__':
-    args = parse_options()
+    args = get_parser()
     img_dir = os.path.abspath(os.path.join(args.input_dir, 'DICOMDAT'))
     mask_dir = os.path.abspath(args.mask_input_dir)
     file_paths = get_filepaths(img_dir)
