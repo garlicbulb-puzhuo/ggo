@@ -350,14 +350,14 @@ def get_filepaths(directory):
     return file_paths  # Self-explanatory.
 
 
-def parse_options():
+def get_parser():
     parser = argparse.ArgumentParser(description='Process DICOM Images.')
-    parser.add_argument('--input_dirs', metavar='input_dirs', nargs='+',
-                        help='input directory for source images and masks', required=True)
-    parser.add_argument('--output_file', metavar='output_file', nargs='?',
-                        help='output file', required=True)
-    parser.add_argument('--config_file', metavar='config_file', nargs='?',
-                        help='config file', required=True)
+    parser.add_argument('-i', '--input-dirs', nargs='+', required=True,
+                        help='input directory for source images and masks')
+    parser.add_argument('-o', '--output-file', nargs='?', required=True,
+                        help='output file')
+    parser.add_argument('-c', '--config-file', nargs='?', required=True,
+                        help='config file')
 
     return parser.parse_args()
 
@@ -635,7 +635,7 @@ def clustering(imgs, ggo_flag):
     return ix
 
 if __name__ == '__main__':
-    args = parse_options()
+    args = get_parser()
 
     config = ConfigParser.ConfigParser()
     config.read(args.config_file)

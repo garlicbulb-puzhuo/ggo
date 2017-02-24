@@ -402,19 +402,21 @@ def predict(model_file_path, test_imgs_path, config):
 
 def get_parser():
     parser = argparse.ArgumentParser(description='Train model.')
-    parser.add_argument('--train', dest='train',
-                        action='store_true', help='train the model')
-    parser.add_argument('--train_imgs_path', metavar='train_imgs_path', nargs='?',
-                        help='input HD5 file for images and masks in the training set')
-    parser.add_argument('--train_mode', metavar='train_mode', nargs='?',
-                        help='mode to train your model, can be either spark or standalone')
-    parser.add_argument('--config_file', metavar='config_file', nargs='?',
+    parser.add_argument('--config-file', nargs='?', required=True,
                         help='config file for your training and prediction')
-    parser.add_argument('--predict', dest='predict',
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--train', dest='train',
+                        action='store_true', help='train the model')
+    parser.add_argument('--train-imgs-path', metavar='train_imgs_path', nargs='?',
+                        help='input HD5 file for images and masks in the training set')
+    parser.add_argument('--train-mode', nargs='?',
+                        help='mode to train your model, can be either spark or standalone')
+
+    group.add_argument('--predict', dest='predict',
                         action='store_true', help='predict the model')
-    parser.add_argument('--test_imgs_path', metavar='test_imgs_path', nargs='?',
+    parser.add_argument('--test-imgs-path', nargs='?',
                         help='input HD5 file for images and masks in the test set')
-    parser.add_argument('--model_file_path', metavar='model_file_path', nargs='?',
+    parser.add_argument('--model-file-path', nargs='?',
                         help='the HD5 file to store the model and weights')
 
     return parser
@@ -426,19 +428,13 @@ def main(prog_args):
 
     print(args)
 
-    if not args.train and not args.predict:
-        parser.error('Required to set either --train or --predict option')
-
-    if not args.config_file:
-        parser.error('Required to set --config_file')
-
     if args.train and (args.train_imgs_path is None or args.train_mode is None):
         parser.error(
-            'arguments --train_imgs_path and --train_mode are required when --train is specified')
+            'arguments --train-imgs-path and --train-mode are required when --train is specified')
 
     if args.predict and (args.test_imgs_path is None or args.model_file_path is None):
         parser.error(
-            'arguments --test_imgs_path and --model_file_path are required when --predict is specified')
+            'arguments --test-imgs-path and --model-file-path are required when --predict is specified')
 
     config = ConfigParser.ConfigParser()
     config.read(args.config_file)

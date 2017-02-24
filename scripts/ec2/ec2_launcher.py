@@ -23,15 +23,13 @@ logger.addHandler(logging_handler_out)
 
 def get_parser():
     parser = argparse.ArgumentParser(description='launch task from ec2')
-    parser.add_argument('--dburl', metavar='dburl', nargs='?',
+    parser.add_argument('-d', '--dburl', nargs='?', required=True,
                         help='the mysql db url')
     return parser
 
 if __name__ == '__main__':
     parser = get_parser()
     args = parser.parse_args()
-    if not args.dburl:
-        parser.error('Required to set --dburl')
 
     engine = create_engine(args.dburl)
 
@@ -80,7 +78,7 @@ if __name__ == '__main__':
     config_file = data_config.get('config_file')
     config_file = os.path.join(working_dir, config_file)
 
-    prog_args = ['--train_path', train_path, '--val_path', val_path, '--config_file', config_file]
+    prog_args = ['--train-path', train_path, '--val-path', val_path, '--config-file', config_file]
     logger.info('Preparing for main program arguments [%s]' % ','.join(map(str, prog_args)))
 
     # launch main program

@@ -150,11 +150,11 @@ def train_and_predict(use_existing, train_path, val_path, train_config):
 def get_parser():
     parser = argparse.ArgumentParser(description='Train model.')
 
-    parser.add_argument('--train_path', metavar='train_path', nargs='?', required=True,
+    parser.add_argument('-t', '--train-path', nargs='?', required=True,
                         help='train data directory containing numpy formatted images and masks in the training set')
-    parser.add_argument('--val_path', metavar='val_path', nargs='?',
+    parser.add_argument('-v', '--val-path', nargs='?', required=True,
                         help='val data directory containing numpy formatted images and masks in the val set')
-    parser.add_argument('--config_file', metavar='config_file', nargs='?', required=True,
+    parser.add_argument('-c', '--config-file', nargs='?', required=True,
                         help='config file for your training and prediction')
     return parser
 
@@ -164,15 +164,6 @@ def main(prog_args):
     args = parser.parse_args(prog_args)
 
     print(args)
-
-    if not args.config_file:
-        parser.error('Required to set --config_file')
-
-    if not args.train_path:
-        parser.error('Required to set --train_path')
-
-    if not args.val_path:
-        parser.error('Required to set --val_path')
 
     config = ConfigParser.ConfigParser()
     config.read(args.config_file)
