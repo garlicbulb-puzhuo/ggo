@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
 
-while true; do
-    schedule_task
-    sleep 5
-done
-
 function schedule_task {
     if curl -s http://169.254.169.254/latest/meta-data/spot/termination-time | grep -q .*T.*Z
     then
@@ -20,3 +15,8 @@ function terminate {
     cd /home/ubuntu/Developer/ggo
     python -m scripts.ec2.ec2_terminator --dburl ${master_ec2_host}
 }
+
+while true; do
+    schedule_task
+    sleep 5
+done

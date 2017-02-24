@@ -6,11 +6,7 @@
 
     ```
     #!/bin/bash
-    cd /home/ubuntu/Developer/ggo
-    git pull --rebase
-    su -s /bin/bash ubuntu -c "/home/ubuntu/Developer/ggo/bin/bootstrap_ec2.sh > ~/Developer/application_logs/bootstrap_ec2.log 2>&1"
-    nohup /home/ubuntu/Developer/ggo/bin/schedule_task_ec2.sh > ~/Developer/application_logs/schedule_task_ec2.log 2>&1 &
-    su -s /bin/bash ubuntu -c "nohup /home/ubuntu/Developer/ggo/bin/terminate_ec2.sh > ~/Developer/application_logs/terminate_ec2.log 2>&1 &"
+    su -s /bin/bash ubuntu -c "~/Developer/ggo/bin/ec2_startup.sh > ~/Developer/application_logs/ec2_startup.log 2>&1"
     ```
 
 - If you want to tear down the instance completely, cancel your spot request
