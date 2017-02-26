@@ -87,13 +87,10 @@ def deprocess_image(x):
 
 if __name__ == "__main__":
     # path to the train output file
-    #file_name = 'unet123.hdf5'
     from model_2 import get_unet
     model = get_unet()
     file_name = '../../../model2_newloss_train10_epoch50_20161126/unet.model2.model.iteration1.hdf5'
-    #plot_inner_layers_output(img=im, model=model, model_hdf5=file_name)
     img_rows = 128
     img_cols = 128
     plot_input_for_layer(
         layer=[1, 3, 10, 15], model=model, img_rows=img_rows, img_cols=img_cols)
-    #layers = print_structure(file_name)

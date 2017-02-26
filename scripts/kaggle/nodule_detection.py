@@ -44,7 +44,9 @@ def predict(model_id, model_weights, input_path, output_path):
     print('-' * 30)
     print('Predicting masks on test data...')
     print('-' * 30)
-    f_list = glob(input_path + os.sep + "*.npy")
+
+    input_files_path = os.path.join(input_path, "*.npy")
+    f_list = glob(input_files_path)
     print("Total patients:" + str(len(f_list)))
 
     for f in f_list:
@@ -76,18 +78,19 @@ def predict(model_id, model_weights, input_path, output_path):
             if np.any(mask_pred[i, 0] > 0.9):
                 n += 1
         print("positive images: " + str(n))
-        np.save(output_path + os.sep + 'mask_' + f.split("/")[-1], mask_pred)
+        output_file_path = os.path.join(output_path, 'mask_' + f.split("/")[-1])
+        np.save(output_file_path, mask_pred)
 
 
 def get_parser():
     parser = argparse.ArgumentParser(description='Prediction.')
-    parser.add_argument('--input_path', metavar='input_path', nargs='?',
+    parser.add_argument('-i', '--input-path', nargs='?', required=True,
                         help='test data directory containing numpy formatted images and masks in the test set')
-    parser.add_argument('--model_id', metavar='model_id', nargs='?', type=int,
+    parser.add_argument('-m', '--model-id', nargs='?', type=int, required=True,
                         help='model_id')
-    parser.add_argument('--model_weights', metavar='model_weights', nargs='?',
+    parser.add_argument('-w', '--model-weights', nargs='?', required=True,
                         help='trained model weights file')
-    parser.add_argument('--output_path', metavar='output_path', nargs='?',
+    parser.add_argument('-o', '--output-path', nargs='?', required=True,
                         help='output directory to store predition ')
     return parser
 
@@ -96,12 +99,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     print(args)
-
-    if not args.model_id:
-        parser.error('Required to set --model_id')
-
-    if not args.input_path:
-        parser.error('Required to set --test_path')
 
     predict(model_id=args.model_id, model_weights=args.model_weights,
             input_path=args.input_path, output_path=args.output_path)

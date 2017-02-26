@@ -23,7 +23,6 @@ def get_model(input_shape=(1, 128, 128)):
                       border_mode='same', name='block1_conv2')(x)
     x = BatchNormalization()(x)
     x = MaxPooling2D((2, 2), strides=(2, 2), name='block1_pool')(x)
-    #x = Dropout(dropout_prob)(x)
 
     # Block 2
     x = Convolution2D(128, 3, 3, activation='relu',

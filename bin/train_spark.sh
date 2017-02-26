@@ -75,7 +75,7 @@ SPARK_COMMAND="$exec_env && spark-submit --num-executors 10 \
     --conf spark.executorEnv.HOME=${SPARK_ENV_HOME} \
     --py-files $DEPENDENT_PY_FILES \
     ${MAIN_TRAIN_SCRIPT} \
-    --train_imgs_path ${training_file} --train --train_mode spark --config_file ${CONFIGURATION_FILE} \
+    --train-imgs-path ${training_file} --train --train-mode spark --config-file ${CONFIGURATION_FILE} \
     >${working_dir}/train.log 2>&1"
 
 echo "Spark Command: $SPARK_COMMAND"

@@ -17,13 +17,13 @@ logging_handler_out = logging.StreamHandler(sys.stdout)
 logger.addHandler(logging_handler_out)
 
 
-def parse_options():
+def get_parser():
     parser = argparse.ArgumentParser(description='Merge DICOM Images.')
-    parser.add_argument('--input_dir', metavar='input_dir', nargs='?',
+    parser.add_argument('-i', '--input-dir', nargs='?', required=True,
                         help='input directory for source images')
-    parser.add_argument('--mask_input_dir', metavar='mask_input_dir', nargs='?',
+    parser.add_argument('-m', '--mask-input-dir', nargs='?', required=True,
                         help='input directory for mask images')
-    parser.add_argument('--output_dir', metavar='output_dir', nargs='?',
+    parser.add_argument('-o', '--output-dir', nargs='?', required=True,
                         help='output directory')
 
     return parser.parse_args()
@@ -60,8 +60,7 @@ def save(img_file, directory):
     shutil.copy2(img_file, directory)
 
 if __name__ == '__main__':
-    args = parse_options()
-    # print args.input_dir
+    args = get_parser()
     img_dir = os.path.abspath(os.path.join(args.input_dir, 'DICOMDAT'))
     mask_dir = os.path.abspath(args.mask_input_dir)
     file_paths = get_filepaths(img_dir)
@@ -103,33 +102,3 @@ if __name__ == '__main__':
         data['sex'] = value['sex']
         with open(os.path.join(patient_dir, 'data.json'), 'w') as fp:
             json.dump(data, fp)
-
-    # for file_path in file_paths:
-    #     logger.debug("file path {0}".format(file_path))
-    #
-    #     common_prefix = os.path.commonprefix([image_path, file_path])
-    #
-    #     relative_path = os.path.relpath(file_path, common_prefix)
-    #     logger.debug("relative path {0}".format(relative_path))
-    #
-    #     # check and create the directory if not exists
-    #     parent_dir = os.path.abspath(os.path.join(file_path, os.pardir))
-    #     parent_relative_path = os.path.relpath(parent_dir, common_prefix)
-    #     output_image_dir = os.path.join(output_path, parent_relative_path)
-    #     if not os.path.exists(output_image_dir):
-    #         os.makedirs(output_image_dir)
-    #
-    #     mask_filepath = os.path.join(mask_path, "%s-mask.tif" % relative_path)
-    #     logger.debug("mask file path {0}".format(mask_filepath))
-    #
-    #     # copy the original image file to the output folder
-    #     shutil.copy2(file_path, output_image_dir)
-    #
-    #     if os.path.isfile(mask_filepath):
-    #         # copy the mask image file to the output folder
-    #         logger.info("found matching mask file {0} for {1}".format(mask_filepath, file_path))
-    #         shutil.copy2(mask_filepath, output_image_dir)
-    #     else:
-    #         logger.debug("no matching mask file {0} found for {0}".format(mask_filepath, file_path))
-
-    # print filepaths

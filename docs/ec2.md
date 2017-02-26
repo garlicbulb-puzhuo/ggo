@@ -52,3 +52,10 @@
 sudo apt-get build-dep python-mysqldb
 pip install MySQL-python
 ```
+
+## Spot instance tips
+### Run spot instance termination checker
+When running a model in a spot instance, run a spot instance termination checker in a new tmux window. Here's an example command:
+```
+$ python -m scripts.ec2.ec2_terminate_checker -u 'sangmin\'s spot instance running model 1 with tensorflow'
+```
