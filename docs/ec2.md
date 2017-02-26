@@ -2,7 +2,7 @@
 - Manually insert the task in the master ec2 mysql backend
 - Select `cs231n.v7` as the source AMI
 - Make sure to check `Persistent request` 
-- Put the following bash script into `user data` when launching an ec2 instance
+- On the ec2 launch page, in `Advanced details` section, put the following bash script into `User data` when launching an ec2 instance.
 
     ```
     #!/bin/bash
@@ -13,7 +13,7 @@
 
 ## Run CPU based data preprocessing on ec2 instance
 - Select `cs231n.v7` as the source AMI 
-- Put the following bash script into `user data` when launching an ec2 instance
+- On the ec2 launch page, in `Advanced details` section, put the following bash script into `User data` when launching an ec2 instance.
 
     ```
     #!/bin/bash
