@@ -39,12 +39,18 @@
 
     Please be noted that if you don't set `batch_size`, the default value is `50`.
     After this step, the image files in `~/mnt/s3/kaggle/input` will be partitioned and moved into `~/mnt/s3/kaggle/partitioned_input`.
-- Launch watershed preprocessing scripts in the background
+- To run watershed preprocessing scripts in the background, run the following
 
     ```
-    $ bin/data_processing/process_imgs.sh -i ~/mnt/s3/kaggle/partitioned_input -o ~/mnt/s3/kaggle/output -l /tmp/preprocesing_logs 
+    $ bin/data_processing/process.sh -p preprocess -i ~/mnt/s3/kaggle/partitioned_input -o ~/mnt/s3/kaggle/watershed_output -l /tmp/preprocesing_logs 
     ```
 
+- To run nodule detection scripts in the background, run the following
+
+    ```
+    $ bin/data_processing/process.sh -p predict -i ~/mnt/s3/kaggle/watershed_output  -o ~/mnt/s3/kaggle/prediction_output -l /tmp/prediction_logs 
+    ```
+    
 ## MISC
 ### install MySQL-python
 
