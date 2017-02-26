@@ -1,6 +1,6 @@
 ## Run GPU based training on an ec2 spot instance
 - Manually insert the task in the master ec2 mysql backend
-- Select `cs231n.v2` as the source AMI
+- Select `cs231n.v7` as the source AMI
 - Make sure to check `Persistent request` 
 - Put the following bash script into `user data` when launching an ec2 instance
 
@@ -12,7 +12,7 @@
 - If you want to tear down the instance completely, cancel your spot request
 
 ## Run CPU based data preprocessing on ec2 instance
-- Select `200.v1` as the source AMI 
+- Select `cs231n.v7` as the source AMI 
 - Put the following bash script into `user data` when launching an ec2 instance
 
     ```
