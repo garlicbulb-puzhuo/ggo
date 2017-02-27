@@ -101,8 +101,8 @@ do
     mkdir -p ${log_dir}/${batch}
 
     if [ ${processor} == "preprocessor" ]; then
-        echo python -m scripts.luna.watershed_processing --input_dir ${input_batch_dir} --output_path ${output_dir}/${batch}
-        nohup python -m scripts.luna.watershed_processing --input_dir ${input_batch_dir} --output_path ${output_dir}/${batch} > ${log_dir}/${batch}/job.log 2>&1 &
+        echo python -m scripts.luna.watershed --input_dir ${input_batch_dir} --output_path ${output_dir}/${batch}
+        nohup python -m scripts.luna.watershed --input_dir ${input_batch_dir} --output_path ${output_dir}/${batch} > ${log_dir}/${batch}/job.log 2>&1 &
     elif [ ${processor} == "predict" ]; then
         echo python -m scripts.kaggle.nodule_detection --model_id 2 --model_weights ${model_file} --input_path ${input_batch_dir} --output_path ${output_dir}/${batch}
         nohup python -m scripts.kaggle.nodule_detection --model_id 2 --model_weights ${model_file} --input_path ${input_batch_dir} --output_path ${output_dir}/${batch} > ${log_dir}/${batch}/job.log 2>&1 &
