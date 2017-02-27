@@ -80,8 +80,8 @@ do
        mkdir -p ${output_dir}/${batch}
    fi
 
-   echo mv ${input_dir}/${files[$i]} ${output_dir}/${batch}
-   mv ${input_dir}/${files[$i]} ${output_dir}/${batch}
+   echo ln -s ${input_dir}/${files[$i]} ${output_dir}/${batch}
+   ln -s ${input_dir}/${files[$i]} ${output_dir}/${batch}
    let i++
 done
 
