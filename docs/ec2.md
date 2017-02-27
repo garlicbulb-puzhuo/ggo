@@ -48,7 +48,7 @@
 - To run nodule detection scripts in the background, run the following
 
     ```
-    $ bin/data_processing/process.sh -p predict -i ~/mnt/s3/kaggle/watershed_output  -o ~/mnt/s3/kaggle/prediction_output -l /tmp/prediction_logs 
+    $ bin/data_processing/process.sh -m model_weights.hd5f -p predict -i ~/mnt/s3/kaggle/watershed_output  -o ~/mnt/s3/kaggle/prediction_output -l /tmp/prediction_logs 
     ```
     
 ## MISC
