@@ -1,8 +1,0 @@
-configuration
-
-which branch, commit ...
-
-result..
-
-we save weight at least to baiyu's machine
-we save weight to s3
