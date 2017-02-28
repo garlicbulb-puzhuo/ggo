@@ -9,10 +9,26 @@ import argparse
 import ConfigParser
 
 
-if K.backend() == 'theano':
+BACKEND = K.backend()
+if BACKEND == 'theano':
     K.set_image_dim_ordering('th')  # Theano dimension ordering in this code
 else:
     K.set_image_dim_ordering('tf')
+
+
+def get_input_shape(img_rows, img_cols):
+    if BACKEND == 'theano':
+        return (1, img_rows, img_cols)
+    else:
+        return (img_rows, img_cols, 1)
+
+
+def get_data(imgs):
+    if BACKEND == 'theano':
+        return imgs
+    else:
+        data = np.rollaxis(imgs, 1, 4)
+        return data
 
 
 def data_generator(path, batch_size=2, img_rows=512, img_cols=512, shuffle=True):
@@ -25,7 +41,6 @@ def data_generator(path, batch_size=2, img_rows=512, img_cols=512, shuffle=True)
     :param img_cols: NOT USED
     :param shuffle: whether shuffling images. It's set to True for now.
     """
-
     input_path = os.path.join(path, "*Images_*.npy")
     f = glob(input_path)
     N = len(f)
@@ -44,18 +59,18 @@ def data_generator(path, batch_size=2, img_rows=512, img_cols=512, shuffle=True)
                 np.random.shuffle(ix)
                 in_imgs = in_imgs[ix, :, :, :]
                 in_masks = in_masks[ix, :, :, :]
-            if (num < batch_size):
-                out = (in_imgs, in_masks)
+            if num < batch_size:
+                out = (get_data(in_imgs), get_data(in_masks))
                 yield out
             else:
                 k = 0
                 while k + batch_size <= num:
-                    out = (in_imgs[k:(k + batch_size), :, :, :],
-                           in_masks[k:(k + batch_size), :, :, :])
+                    out = (get_data(in_imgs[k:(k + batch_size), :, :, :]),
+                           get_data(in_masks[k:(k + batch_size), :, :, :]))
                     k += batch_size
                     yield out
                 if k < num:
-                    out = (in_imgs[k:num, :, :, :], in_masks[k:num, :, :, :])
+                    out = (get_data(in_imgs[k:num, :, :, :]), get_data(in_masks[k:num, :, :, :]))
                     yield out
         n += 1
         if n >= N:
@@ -114,10 +129,7 @@ def train_and_predict(use_existing, train_path, val_path, train_config):
 
     from ..train import get_standalone_model_callbacks
 
-    if K.image_dim_ordering() == 'th':
-        input_shape = (1, img_rows, img_cols)
-    else:
-        input_shape = (img_rows, img_cols, 1)
+    input_shape = get_input_shape(img_rows, img_cols)
     model, model_name = get_model(input_shape)
     model_callbacks = get_standalone_model_callbacks(
         model_name=model_name, model_id=model_id, train_config=train_config)
