@@ -1,8 +1,8 @@
 ## Run GPU based training on an ec2 spot instance
 - Manually insert the task in the master ec2 mysql backend
-- Select `cs231n.v2` as the source AMI
+- Select `200.v4` as the source AMI
 - Make sure to check `Persistent request` 
-- Put the following bash script into `user data` when launching an ec2 instance
+- On the ec2 launch page, in `Advanced details` section, put the following bash script into `User data` when launching an ec2 instance.
 
     ```
     #!/bin/bash
@@ -12,8 +12,8 @@
 - If you want to tear down the instance completely, cancel your spot request
 
 ## Run CPU based data preprocessing on ec2 instance
-- Select `200.v1` as the source AMI 
-- Put the following bash script into `user data` when launching an ec2 instance
+- Select `200.v4` as the source AMI 
+- On the ec2 launch page, in `Advanced details` section, put the following bash script into `User data` when launching an ec2 instance.
 
     ```
     #!/bin/bash
@@ -39,12 +39,18 @@
 
     Please be noted that if you don't set `batch_size`, the default value is `50`.
     After this step, the image files in `~/mnt/s3/kaggle/input` will be partitioned and moved into `~/mnt/s3/kaggle/partitioned_input`.
-- Launch watershed preprocessing scripts in the background
+- To run watershed preprocessing scripts in the background, run the following
 
     ```
-    $ bin/data_processing/process_imgs.sh -i ~/mnt/s3/kaggle/partitioned_input -o ~/mnt/s3/kaggle/output -l /tmp/preprocesing_logs 
+    $ bin/data_processing/process.sh -p preprocess -i ~/mnt/s3/kaggle/partitioned_input -o ~/mnt/s3/kaggle/watershed_output -l /tmp/preprocesing_logs 
     ```
 
+- To run nodule detection scripts in the background, run the following
+
+    ```
+    $ bin/data_processing/process.sh -m model_weights.hd5f -p predict -i ~/mnt/s3/kaggle/watershed_output  -o ~/mnt/s3/kaggle/prediction_output -l /tmp/prediction_logs 
+    ```
+    
 ## MISC
 ### install MySQL-python
 
