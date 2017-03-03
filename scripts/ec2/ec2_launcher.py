@@ -72,9 +72,13 @@ if __name__ == '__main__':
 
     # prepare for arguments
     train_path = data_config.get('train_path')
-    train_path = os.path.join(working_dir, train_path)
+    if not os.path.isabs(train_path):
+        train_path = os.path.join(working_dir, train_path)
+
     val_path = data_config.get('val_path')
-    val_path = os.path.join(working_dir, val_path)
+    if not os.path.isabs(val_path):
+        val_path = os.path.join(working_dir, val_path)
+
     config_file = data_config.get('config_file')
     config_file = os.path.join(working_dir, config_file)
 
