@@ -4,7 +4,7 @@ from keras.models import Model
 from keras.layers import Input, merge, Convolution2D, MaxPooling2D, UpSampling2D, Dropout
 from optimizer import adam
 from keras.layers.normalization import BatchNormalization
-from loss import custom_loss, custom_metric
+from loss import dice_coef_loss, dice_coef
 
 
 def BNConv(nb_filter, nb_row, nb_col, w_decay=None, subsample=(1, 1), border_mode="same"):
@@ -44,5 +44,5 @@ def get_model(input_shape=(1, 128, 128), lr=1e-5, dropout_prob=0.5):
     x = Convolution2D(1, 1, 1, activation='sigmoid')(x)
 
     model = Model(input=inputs, output=x)
-    model.compile(optimizer=adam, loss=custom_loss, metrics=[custom_metric])
+    model.compile(optimizer=adam, loss=dice_coef_loss, metrics=[dice_coef])
     return model, "model_1"
