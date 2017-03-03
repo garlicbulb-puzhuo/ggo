@@ -32,7 +32,7 @@ function mount_s3 {
     mkdir -p /tmp/cache
     chmod 777 /tmp/cache
     mkdir -p ~/mnt/s3
-    s3fs -oumask=0022 -o use_cache=/tmp/cache ggo2016 ~/mnt/s3
+    s3fs -oumask=0022 -o use_cache=/tmp/cache kaggle3 ~/mnt/s3
 }
 
 # setup a trip to call abort on non-zero return code
