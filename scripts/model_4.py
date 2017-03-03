@@ -6,22 +6,25 @@ Inception V3 model
 .. Other keras implementation: https://gist.github.com/neggert/f8b86d001a367aa7dde1ab6b587246b5
 """
 from keras.models import Model
-from keras.layers import Dropout, Input, merge
-from keras.layers.convolutional import Convolution2D, MaxPooling2D, AveragePooling2D, Deconvolution2D
+from keras.layers import Input, Dense, Flatten, merge, Lambda, Dropout
+from keras.layers.convolutional import Convolution2D, MaxPooling2D, AveragePooling2D, ZeroPadding2D, Deconvolution2D
 from keras.layers.normalization import BatchNormalization
 from keras.regularizers import l2
 import keras.backend as K
 from optimizer import adam
-from loss import custom_loss, custom_metric
+from loss import dice_coef_loss, dice_coef
 
-if K.backend() == 'theano':
-    # Evidently this model breaks Python's default recursion limit
-    # This is a theano issue
-    import sys
-    sys.setrecursionlimit(1000000)
-    CONCAT_AXIS = 1
-else:
-    CONCAT_AXIS = 3
+
+# Evidently this model breaks Python's default recursion limit
+# This is a theano issue
+import sys
+sys.setrecursionlimit(1000000)
+
+BACKEND = K.backend()
+
+
+def get_axis():
+    return 1 if (BACKEND == 'theano') else 3
 
 
 def BNConv(nb_filter, nb_row, nb_col, w_decay, subsample=(1, 1), border_mode="same"):
@@ -29,7 +32,7 @@ def BNConv(nb_filter, nb_row, nb_col, w_decay, subsample=(1, 1), border_mode="sa
         conv = Convolution2D(nb_filter=nb_filter, nb_row=nb_row, nb_col=nb_col, subsample=subsample,
                       border_mode=border_mode, activation="relu",
                       W_regularizer=l2(w_decay) if w_decay else None, init="he_normal")(input)
-        return BatchNormalization(mode=0, axis=1)(conv)
+        return BatchNormalization(mode=0, axis=get_axis())(conv)
     return f
 
 
@@ -78,6 +81,8 @@ def inception_v3(input_shape, dropout_prob, w_decay=None):
    
     
 def get_model(input_shape = (1, 128, 128), dropout_prob = 0.5, w_decay = None):
+    import sys
+    sys.setrecursionlimit(1000000)
     import time
     start = time.time()
     model = inception_v3(input_shape, dropout_prob, w_decay)
@@ -88,7 +93,7 @@ def get_model(input_shape = (1, 128, 128), dropout_prob = 0.5, w_decay = None):
     duration = time.time() - start
     print "{} s to get output".format(duration)
     start = time.time()
-    model.compile(optimizer=adam, loss=custom_loss, metrics=[custom_metric])
+    model.compile(optimizer=adam, loss=dice_coef_loss, metrics=[dice_coef])
     duration = time.time() - start
     print "{} s to get compile".format(duration)
     return model, 'inception_v3'
@@ -113,7 +118,7 @@ def InceptionFig5(w_decay):
         # Tower D
         conv_d1 = BNConv(64, 1, 1, w_decay)(input)
 
-        return merge([conv_a3, conv_b2, conv_c2, conv_d1], mode='concat', concat_axis=CONCAT_AXIS)
+        return merge([conv_a3, conv_b2, conv_c2, conv_d1], mode='concat', concat_axis=get_axis())
 
     return f
 
@@ -138,7 +143,7 @@ def InceptionFig6(w_decay):
         # Tower D
         conv_d = BNConv(192, 1, 1, w_decay)(input)
 
-        return merge([conv_a5, conv_b3, conv_c2, conv_d], mode="concat", concat_axis=CONCAT_AXIS)
+        return merge([conv_a5, conv_b3, conv_c2, conv_d], mode="concat", concat_axis=get_axis())
 
     return f
 
@@ -163,7 +168,7 @@ def InceptionFig7(w_decay):
         # Tower D
         conv_d = BNConv(320, 1, 1, w_decay)(input)
 
-        return merge([conv_a4, conv_b3, conv_c2, conv_d], mode="concat", concat_axis=CONCAT_AXIS)
+        return merge([conv_a4, conv_b3, conv_c2, conv_d], mode="concat", concat_axis=get_axis())
 
     return f
 
@@ -181,7 +186,7 @@ def DimReductionA(w_decay):
 
         pool_c = MaxPooling2D(pool_size=(3, 3), strides=(2, 2), border_mode="valid")(input)
 
-        return merge([conv_a3, conv_b, pool_c], mode="concat", concat_axis=CONCAT_AXIS)
+        return merge([conv_a3, conv_b, pool_c], mode="concat", concat_axis=get_axis())
     return f
 
 
@@ -200,7 +205,7 @@ def DimReductionB(w_decay):
         # Tower C
         pool_c = MaxPooling2D(pool_size=(3, 3), strides=(2, 2), border_mode="valid")(input)
 
-        return merge([conv_a2, conv_b4, pool_c], mode="concat", concat_axis=CONCAT_AXIS)
+        return merge([conv_a2, conv_b4, pool_c], mode="concat", concat_axis=get_axis())
     return f
 
 

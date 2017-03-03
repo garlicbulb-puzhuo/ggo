@@ -14,9 +14,8 @@ import os
 import sys
 import logging
 import numpy as np
-import os
 
-from loss import custom_loss
+from loss import dice_coef_loss
 
 from data_utils import train_val_data_generator, test_data_generator, train_val_generator
 
@@ -26,6 +25,7 @@ import traceback
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+# match images and masks
 logging_handler_out = logging.StreamHandler(sys.stdout)
 logger.addHandler(logging_handler_out)
 
@@ -92,12 +92,6 @@ def get_standalone_model_callbacks(model_name, model_id, train_config):
     :param train_config: train config in ConfigParser.ConfigParser
     :return: [model_checkpoint, remove_model_checkpoints, print_history]
     """
-    # TODO: EarlyStopping is not used? Remove the following code?
-    early_stop_min_delta = float(
-        train_config.get('early_stop_min_delta', 1e-6))
-    early_stop = EarlyStopping(
-        monitor='val_loss', min_delta=early_stop_min_delta, patience=2, verbose=0)
-
     model_save_directory = train_config.get('model_save_directory', os.getcwd())
 
     model_checkpoint = ModelCheckpoint(
@@ -110,8 +104,8 @@ def get_standalone_model_callbacks(model_name, model_id, train_config):
             files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
 
             # Remove old files
-            if len(files) > 5:
-                old_files = files[5:]
+            if len(files) > 3:
+                old_files = files[3:]
                 for old_file in old_files:
                     print("Removing an old file {}".format(old_file))
                     os.remove(old_file)
@@ -142,7 +136,6 @@ def get_standalone_model_callbacks(model_name, model_id, train_config):
 
     print_history = LossHistory(standalone_loss_history_file)
 
-    # TODO: PrintBatch is not used? Remove the following code?
     class PrintBatch(Callback):
 
         def on_batch_end(self, epoch, logs={}):
@@ -279,6 +272,8 @@ def train(train_imgs_path, train_mode, train_config):
         from model_3 import get_model
 
     if model_id == 4:
+        import sys
+        sys.setrecursionlimit(1000000)
         from model_4 import get_model
 
     input_shape = (1, img_rows, img_cols)
@@ -421,10 +416,9 @@ def get_parser():
 
     return parser
 
-
-def main(prog_args):
+if __name__ == '__main__':
     parser = get_parser()
-    args = parser.parse_args(prog_args)
+    args = parser.parse_args()
 
     print(args)
 
@@ -449,8 +443,3 @@ def main(prog_args):
         predict(model_file_path=args.model_file_path,
                 test_imgs_path=args.test_imgs_path,
                 config=data_config)
-
-
-if __name__ == '__main__':
-    import sys
-    main(sys.argv[1:])
