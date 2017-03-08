@@ -1,19 +1,19 @@
 ## Run GPU based training on an ec2 spot instance
 - Create task directory on s3 and its configurations. The typical structure for a task looks like the following
     ```
-    mnt/s3/ec2/test_run_1/
-    ├── config
-    │   └── task_config.ini
-    ├── config.ini
-    └── model
+     mnt/s3/ec2/test_run_1/
+     ├── config
+     │   └── task_config.ini
+     ├── config.ini
+     └── model
     ```
 - Manually insert the task in the master ec2 mysql backend
     ```
-    msyql -u kaggle -p
+    mysql -h ec2-54-153-80-106.us-west-1.compute.amazonaws.com -u kaggle -p
     
-    begin;
-    insert into task (working_dir, worker) values ('ec2/test_run_1', 'host');
-    commit;
+    mysql> begin;
+    mysql> insert into task (working_dir, worker) values ('ec2/test_run_1', 'host');
+    mysql> commit;
     ```
 - Select `700.v4` as the source AMI
 - Make sure to check `Persistent request` 
