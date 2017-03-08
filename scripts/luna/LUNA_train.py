@@ -122,9 +122,12 @@ def train_and_predict(use_existing, train_path, val_path, train_config):
     elif model_id == 4:
         from ..model_4 import get_model
 
+    elif model_id == 5: 
+        from ..model_5 import get_model 
+
     else:
         import sys
-        print("model_id should be in [1..4].")
+        print("model_id should be in [1..5].")
         sys.exit(1)
 
     input_shape = (1, img_rows, img_cols)
@@ -185,7 +188,7 @@ def main(prog_args):
     config.read(args.config_file)
     data_config = dict(config.items('config'))
 
-    train_and_predict(True, train_path=args.train_path,
+    train_and_predict(False, train_path=args.train_path,
                       val_path=args.val_path, train_config=data_config)
 
 if __name__ == '__main__':
