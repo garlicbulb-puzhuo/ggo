@@ -11,6 +11,7 @@
     ```
     mysql -h ec2-54-153-80-106.us-west-1.compute.amazonaws.com -u kaggle -p
     
+    mysql> use ggo;
     mysql> begin;
     mysql> insert into task (working_dir, worker) values ('ec2/test_run_1', 'host');
     mysql> commit;
