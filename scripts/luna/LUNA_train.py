@@ -46,38 +46,39 @@ def data_generator(path, batch_size=2, img_rows=512, img_cols=512, shuffle_data=
     input_path = os.path.join(path, "*Images_*.npy")
     f = glob(input_path)
     N = len(f)
-    n = 0 
-    while True: 
+    n = 0
+    while True:
         if shuffle_data:
             shuffle(f)
         in_imgs = np.load(f[n])
-        in_masks = np.load(f[n].replace("Images","Masks"))
+        in_masks = np.load(f[n].replace("Images", "Masks"))
         num = in_imgs.shape[0]
         mean = np.mean(in_imgs)
         std = np.std(in_imgs)
-        in_imgs-= mean  # images should already be standardized, but just in case
+        in_imgs -= mean  # images should already be standardized, but just in case
         in_imgs /= std
-        if num>0 : 
+        if num > 0:
             if shuffle_data:
                 ix = np.arange(num)
                 np.random.shuffle(ix)
                 in_imgs = in_imgs[ix, :, :, :]
                 in_masks = in_masks[ix, :, :, :]
-            if (num < batch_size): 
+            if (num < batch_size):
                 out = (in_imgs, in_masks)
                 yield out
-            else: 
-                k = 0 
-                while k+batch_size <= num: 
-                    out = (in_imgs[k:(k+batch_size),:,:,:], in_masks[k:(k+batch_size),:,:,:])
+            else:
+                k = 0
+                while k + batch_size <= num:
+                    out = (in_imgs[k:(k + batch_size), :, :, :],
+                           in_masks[k:(k + batch_size), :, :, :])
                     k += batch_size
                     yield out
-                if k<num: 
-                    out = (in_imgs[k:num,:,:,:], in_masks[k:num,:,:,:])
+                if k < num:
+                    out = (in_imgs[k:num, :, :, :], in_masks[k:num, :, :, :])
                     yield out
         n += 1
-        if n>=N: 
-            n=0 
+        if n >= N:
+            n = 0
 
 
 def get_latest_hdf5():
@@ -128,7 +129,8 @@ def train_and_predict(use_existing, train_path, val_path, train_config):
 
     input_shape = (1, img_rows, img_cols)
     model, model_name = get_model(input_shape)
-    model_callbacks = get_standalone_model_callbacks(model_name=model_name, model_id=model_id, train_config=train_config)
+    model_callbacks = get_standalone_model_callbacks(
+        model_name=model_name, model_id=model_id, train_config=train_config)
 
     # Saving weights to unet.hdf5 at checkpoints
     # model_checkpoint = ModelCheckpoint('unet.hdf5', monitor='loss', save_best_only=True)
@@ -152,14 +154,13 @@ def train_and_predict(use_existing, train_path, val_path, train_config):
     print('Fitting model...')
     print('-' * 30)
 
-    # TODO: we have to make this as an argument to determine whether we use fit or fit_generator
-    #model.fit(imgs_train, imgs_mask_train, batch_size=batch_size, nb_epoch=nb_epoch,
-    #          verbose=1, shuffle=True, validation_split=validation_split, callbacks=model_callbacks)
+    # TODO: we have to make this as an argument to determine whether we use
+    # fit or fit_generator
     model.fit_generator(
-            generator=data_generator(train_path, batch_size=batch_size),
-            samples_per_epoch=2000, nb_epoch=nb_epoch, verbose=1, callbacks=model_callbacks, max_q_size = 5, nb_worker=1,
-            validation_data=data_generator(val_path, batch_size=batch_size),
-            nb_val_samples=200)
+        generator=data_generator(train_path, batch_size=batch_size),
+        samples_per_epoch=2000, nb_epoch=nb_epoch, verbose=1, callbacks=model_callbacks, max_q_size=5, nb_worker=1,
+        validation_data=data_generator(val_path, batch_size=batch_size),
+        nb_val_samples=200)
 
 
 def get_parser():
@@ -173,9 +174,10 @@ def get_parser():
                         help='config file for your training and prediction')
     return parser
 
-if __name__ == '__main__':
+
+def main(prog_args):
     parser = get_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(prog_args)
 
     print(args)
 
@@ -185,3 +187,7 @@ if __name__ == '__main__':
 
     train_and_predict(True, train_path=args.train_path,
                       val_path=args.val_path, train_config=data_config)
+
+if __name__ == '__main__':
+    import sys
+    main(sys.argv[1:])
