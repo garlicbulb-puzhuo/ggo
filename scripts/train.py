@@ -112,8 +112,7 @@ def get_standalone_model_callbacks(model_name, model_id, train_config):
 
     remove_checkpoints = RemoveCheckpoints()
 
-    standalone_loss_history_file = train_config.get(
-        'standalone_loss_history_file', 'standalone_loss_history_file')
+    standalone_loss_history_file = os.path.join(model_save_directory, train_config.get('standalone_loss_history_file', 'standalone_loss_history_file'))
 
     class LossHistory(Callback):
 
