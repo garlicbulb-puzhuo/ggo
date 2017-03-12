@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 WORKING_DIR=/home/ubuntu/Developer/ggo
-. ${WORKING_DIR}/app-env.sh
+. ${WORKING_DIR}/bin/app-env.sh
 
 cd ${WORKING_DIR}
 master_ec2_host=`cat ~/.master_ec2_host`

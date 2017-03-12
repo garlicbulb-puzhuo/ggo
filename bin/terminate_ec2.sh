@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 WORKING_DIR=/home/ubuntu/Developer/ggo
-. ${WORKING_DIR}/app-env.sh
+. ${WORKING_DIR}/bin/app-env.sh
 
 function schedule_task {
     if curl -s http://169.254.169.254/latest/meta-data/spot/termination-time | grep -q .*T.*Z
