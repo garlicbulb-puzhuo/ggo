@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# This file is called from other scripts.
+# This file sets multiple env variables, including
+# PATH, LD_LIBRARY_PATH, and PYTHONPATH.
+
 # added by Anaconda2 2.4.1 installer
 export PATH="/home/ubuntu/anaconda2/bin:$PATH"
 export PATH="/usr/local/cuda/bin:$PATH"
