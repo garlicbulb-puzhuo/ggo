@@ -81,19 +81,20 @@ def data_generator(path, batch_size=2, img_rows=512, img_cols=512, shuffle_data=
             n = 0
 
 
-def get_latest_hdf5():
+def get_latest_hdf5(model_save_directory):
     """
     Returns the latest hdf5 file.
 
     :return: latest hdf5 filename.
     """
-    files = filter(os.path.isfile, glob("*.hdf5"))
+    model_path = os.path.join(model_save_directory, "*.hdf5")
+    files = filter(os.path.isfile, glob(model_path))
     files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
     if len(files) > 0:
         return files[0]
 
 
-def train_and_predict(use_existing, train_path, val_path, train_config):
+def train_and_predict(train_path, val_path, train_config):
     print('-' * 30)
     print('Loading and preprocessing train data...')
     print('-' * 30)
@@ -106,9 +107,15 @@ def train_and_predict(use_existing, train_path, val_path, train_config):
     img_cols = int(train_config.get('img_cols'))
     model_id = int(train_config.get('model_id'))
 
+    use_existing_model = bool(train_config.get('use_existing_model', 'False'))
+
     nb_epoch = int(train_config.get('nb_epoch'))
     batch_size = int(train_config.get('batch_size'))
     validation_split = float(train_config.get('validation_split', 0.2))
+
+    print('Config: use_existing_model: %s' % use_existing_model)
+    print('Config: nb_epoch: %s' % nb_epoch)
+    print('Config: batch_size: %s' % batch_size)
 
     if model_id == 1:
         from ..model_1 import get_model
@@ -122,8 +129,8 @@ def train_and_predict(use_existing, train_path, val_path, train_config):
     elif model_id == 4:
         from ..model_4 import get_model
 
-    elif model_id == 5: 
-        from ..model_5 import get_model 
+    elif model_id == 5:
+        from ..model_5 import get_model
 
     else:
         import sys
@@ -135,14 +142,11 @@ def train_and_predict(use_existing, train_path, val_path, train_config):
     model_callbacks = get_standalone_model_callbacks(
         model_name=model_name, model_id=model_id, train_config=train_config)
 
-    # Saving weights to unet.hdf5 at checkpoints
-    # model_checkpoint = ModelCheckpoint('unet.hdf5', monitor='loss', save_best_only=True)
-    #
-    # Should we load existing weights?
-    # Set argument for call to train_and_predict to true at end of script
-    if use_existing:
-        latest_hdf5_file = get_latest_hdf5()
+    if use_existing_model:
+        model_save_directory = train_config.get('model_save_directory', os.getcwd())
+        latest_hdf5_file = get_latest_hdf5(model_save_directory)
         if latest_hdf5_file:
+            print('Reading from existing model/weights file %s...' % latest_hdf5_file)
             model.load_weights(latest_hdf5_file)
 
     #
@@ -188,7 +192,7 @@ def main(prog_args):
     config.read(args.config_file)
     data_config = dict(config.items('config'))
 
-    train_and_predict(False, train_path=args.train_path,
+    train_and_predict(train_path=args.train_path,
                       val_path=args.val_path, train_config=data_config)
 
 if __name__ == '__main__':
