@@ -14,9 +14,15 @@ function schedule_task {
 
 
 function terminate {
+    now=$(date +"%T")
     master_ec2_host=`cat ~/.master_ec2_host`
     cd ${WORKING_DIR}
+
+    echo "$now terminating tasks on ${HOSTNAME}"
     python -m scripts.ec2.ec2_terminator --dburl ${master_ec2_host}
+
+    now=$(date +"%T")
+    echo "$now finished terminating tasks"
 }
 
 while true; do
