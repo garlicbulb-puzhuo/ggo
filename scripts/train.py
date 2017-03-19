@@ -15,8 +15,6 @@ import sys
 import logging
 import numpy as np
 
-from loss import dice_coef_loss
-
 from data_utils import train_val_data_generator, test_data_generator, train_val_generator
 
 import signal
@@ -94,13 +92,23 @@ def get_standalone_model_callbacks(model_name, model_id, train_config):
     """
     model_save_directory = train_config.get('model_save_directory', os.getcwd())
 
-    model_checkpoint = ModelCheckpoint(
-        os.path.join(model_save_directory, '%s.standalone.model%d.{epoch:02d}.hdf5' % (model_name, model_id)), monitor='loss', save_best_only=False)
+    import time
+    import datetime
+    ts = time.time()
+    st = datetime.datetime.fromtimestamp(ts).strftime('%Y%m%d%H%M%S')
+
+    model_weights_file = os.path.join(model_save_directory, '%s.standalone.model%d.%s.{epoch:02d}.hdf5' % (model_name, model_id, st))
+    model_checkpoint = ModelCheckpoint(model_weights_file, monitor='loss', save_best_only=False)
+
+    model_weights_file_pattern = os.path.join(model_save_directory, "*model*.hdf5")
 
     class RemoveCheckpoints(Callback):
-        def on_epoch_end(self, epoch):
+        def __init__(self, pattern):
+            self.model_weights_file_pattern = pattern
+
+        def on_epoch_end(self, epoch, logs={}):
             # Get sorted checkpoint files
-            files = filter(os.path.isfile, glob("*.hdf5"))
+            files = filter(os.path.isfile, glob.glob(self.model_weights_file_pattern))
             files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
 
             # Remove old files
@@ -110,12 +118,11 @@ def get_standalone_model_callbacks(model_name, model_id, train_config):
                     print("Removing an old file {}".format(old_file))
                     os.remove(old_file)
 
-    remove_checkpoints = RemoveCheckpoints()
-
-    standalone_loss_history_file = os.path.join(model_save_directory, train_config.get('standalone_loss_history_file', 'standalone_loss_history_file'))
+    remove_checkpoints = RemoveCheckpoints(pattern=model_weights_file_pattern)
+    standalone_loss_history_file = os.path.join(model_save_directory,
+                                                '%s.%s.%s' % (model_name, train_config.get('standalone_loss_history_file', 'standalone_loss_history_file'), st))
 
     class LossHistory(Callback):
-
         def __init__(self, filename):
             self.file = filename
             self.losses = []
@@ -135,12 +142,6 @@ def get_standalone_model_callbacks(model_name, model_id, train_config):
 
     print_history = LossHistory(standalone_loss_history_file)
 
-    class PrintBatch(Callback):
-
-        def on_batch_end(self, epoch, logs={}):
-            print(logs)
-
-    pb = PrintBatch()
     return [model_checkpoint, remove_checkpoints, print_history]
 
 
@@ -225,7 +226,6 @@ def get_spark_model_callbacks(model_name, model_id, train_config):
 
 def train(train_imgs_path, train_mode, train_config):
     def transfer_existing_model():
-        import glob
         import re
 
         files = glob.glob("*[model|weights]*.hdf5")
