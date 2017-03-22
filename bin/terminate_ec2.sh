@@ -6,7 +6,18 @@ WORKING_DIR=/home/ubuntu/Developer/ggo
 function schedule_task {
     if curl -s http://169.254.169.254/latest/meta-data/spot/termination-time | grep -q .*T.*Z
     then
-        echo "ec2 instance is about to be shut down on ${HOSTNAME}"
+        now=$(date +"%D %T")
+        echo "$now ec2 instance is about to be shut down on ${HOSTNAME}"
+
+        # Kill the training program if any
+        TRAINING_PID=$(ps -ef | grep scripts.ec2.ec2_launcher | grep -v grep | awk '{print $2}')
+        if [ -z ${TRAINING_PID} ]; then
+            echo "$now no training program is running"
+        else
+            echo kill -9 ${TRAINING_PID}
+            kill -9 ${TRAINING_PID}
+        fi
+
         terminate
         exit
     fi
@@ -14,7 +25,7 @@ function schedule_task {
 
 
 function terminate {
-    now=$(date +"%T")
+    now=$(date +"%D %T")
     master_ec2_host=`cat ~/.master_ec2_host`
     cd ${WORKING_DIR}
 
