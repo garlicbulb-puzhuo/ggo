@@ -5,7 +5,8 @@ from keras.layers import (
     Activation,
     merge,
     Dense,
-    Flatten
+    Flatten, 
+    UpSampling2D
 )
 from keras.layers.convolutional import (
     Convolution2D,
@@ -15,6 +16,8 @@ from keras.layers.convolutional import (
 from keras.layers.normalization import BatchNormalization
 from keras.regularizers import l2
 from keras import backend as K
+from loss import dice_coef_loss, dice_coef
+from optimizer import adam
 
 
 def _bn_relu(input):
@@ -92,7 +95,8 @@ def _residual_block(block_function, nb_filter, repetitions, is_first_layer=False
         for i in range(repetitions):
             init_subsample = (1, 1)
             if i == 0 and not is_first_layer:
-                init_subsample = (2, 2)
+                #init_subsample = (2, 2)
+                init_subsample = (1, 1)
             input = block_function(
                     nb_filter=nb_filter,
                     init_subsample=init_subsample,
@@ -175,7 +179,7 @@ def _get_block(identifier):
 
 class ResnetBuilder(object):
     @staticmethod
-    def build(input_shape, num_outputs, block_fn, repetitions):
+    def build(input_shape, block_fn, repetitions):
         """Builds a custom ResNet like architecture.
         Args:
             input_shape: The input shape in the form (nb_channels, nb_rows, nb_cols)
@@ -198,9 +202,9 @@ class ResnetBuilder(object):
         # Load function from str if needed.
         block_fn = _get_block(block_fn)
 
-        input = Input(shape=input_shape)
-        conv1 = _conv_bn_relu(nb_filter=64, nb_row=7, nb_col=7, subsample=(2, 2))(input)
-        pool1 = MaxPooling2D(pool_size=(3, 3), strides=(2, 2), border_mode="same")(conv1)
+        inputs = Input(shape=input_shape)
+        conv1 = _conv_bn_relu(nb_filter=64, nb_row=7, nb_col=7, subsample=(1, 1))(inputs)
+        pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
 
         block = pool1
         nb_filter = 64
@@ -215,18 +219,20 @@ class ResnetBuilder(object):
         block_output = Activation("relu")(block_norm)
 
         # Classifier block
-        pool2 = AveragePooling2D(pool_size=(block._keras_shape[ROW_AXIS],
-                                            block._keras_shape[COL_AXIS]),
-                                 strides=(1, 1))(block_output)
-        flatten1 = Flatten()(pool2)
-        dense = Dense(output_dim=num_outputs, init="he_normal", activation="softmax")(flatten1)
-
-        model = Model(input=input, output=dense)
+        #pool2 = AveragePooling2D(pool_size=(block._keras_shape[ROW_AXIS],
+        #                                    block._keras_shape[COL_AXIS]),
+        #                         strides=(1, 1))(block_output)
+        #flatten1 = Flatten()(pool2)
+        #dense = Dense(output_dim=num_outputs, init="he_normal", activation="softmax")(flatten1)
+        up1 = UpSampling2D(size=(2, 2))(block_output)
+        outputs = Convolution2D(1, 1, 1, activation='sigmoid')(up1)
+        model = Model(input=inputs, output=outputs)
+        model.compile(optimizer=adam, loss=dice_coef_loss, metrics=[dice_coef])
         return model
 
     @staticmethod
-    def build_resnet_18(input_shape, num_outputs):
-        return ResnetBuilder.build(input_shape, num_outputs, basic_block, [2, 2, 2, 2])
+    def build_resnet_18(input_shape):
+        return ResnetBuilder.build(input_shape, basic_block, [2, 2])
 
     @staticmethod
     def build_resnet_34(input_shape, num_outputs):
@@ -243,3 +249,7 @@ class ResnetBuilder(object):
     @staticmethod
     def build_resnet_152(input_shape, num_outputs):
         return ResnetBuilder.build(input_shape, num_outputs, bottleneck, [3, 8, 36, 3])
+
+def get_model(input_shape=(1,512,512)): 
+    model = ResnetBuilder.build_resnet_18(input_shape)
+    return model, 'resnet'
