@@ -30,7 +30,13 @@ brew install python
 #### Install opencv on Mac OS
 http://www.mobileway.net/2015/02/14/install-opencv-for-python-on-mac-os-x/
 ```
-brew install python
+$ brew install python
+```
+#### Install opencv on Ubuntu
+Reference: http://milq.github.io/install-opencv-ubuntu-debian/
+If you have conda installed, run
+```
+$ conda install opencv
 ```
 #### Install opencv on CentOs
 ##### Install opencv on CentOs - NOT WORKING
