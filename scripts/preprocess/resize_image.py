@@ -6,7 +6,7 @@ import os
 
 
 def resize_image(input_dir, output_dir, size):
-    file_list = glob(input_dir + "*.npy")
+    file_list = glob(os.path.join(input_dir, "*.npy"))
     for f in file_list:
         fname = f.split("/")[-1]
         imgs = np.load(f)

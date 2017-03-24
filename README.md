@@ -5,7 +5,7 @@ Read our documentation
 - [Pre-processing, training models on amazon ec2](docs/ec2.md)
 
 These document needs updates
-- [Install programs](docs/git.md)
+- [Install programs](docs/install.md)
 - [Elephas](docs/elephas.md)
 - [References](docs/references.md)
 - [Train](docs/train.md)
